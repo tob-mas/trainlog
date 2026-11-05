@@ -102,7 +102,14 @@ label{font-size:12px;color:var(--mut);font-weight:600;display:block;margin:10px 
 .ssbox{border:1.5px dashed var(--c);border-radius:22px;padding:8px 8px 0;margin-bottom:12px;position:relative}
 .ssbox>.card{margin-bottom:8px}
 .sslabel{position:absolute;top:-10px;left:18px;background:var(--bg);color:var(--c);font-size:11px;font-weight:800;letter-spacing:.08em;padding:0 6px}
-.sethead,.setrow{display:grid;grid-template-columns:30px 58px 1fr 1fr 44px 42px;gap:6px;align-items:center}
+.sethead,.setrow{display:grid;grid-template-columns:30px 58px 1fr 1fr 42px;gap:6px;align-items:center}
+.setrow.sub{margin-top:5px;padding-left:10px}
+.setrow.sub .cell{height:36px;font-size:15px}
+.cell.setno.p{color:#22d3ee;font-weight:800}
+.tick.x{height:36px;font-size:14px;color:var(--mut)}
+.restln{font-size:11.5px;color:var(--mut);text-align:right;padding:3px 4px 0;font-variant-numeric:tabular-nums}
+.exbtns{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:4px}
+.exbtns .btn{padding:7px 2px;font-size:13px}
 .sethead{font-size:11px;color:var(--mut);font-weight:700;text-align:center;margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em}
 .sw{position:relative;border-radius:12px;overflow:hidden;margin-bottom:6px}
 .sw .del{position:absolute;inset:0;background:var(--bad);color:#fff;display:flex;align-items:center;justify-content:flex-end;padding-right:18px;font-weight:700;font-size:14px;border-radius:12px}
@@ -215,7 +222,7 @@ canvas{width:100%;height:190px;display:block}
 </nav>
 <script>
 /* ======================= CORE / UTILS ======================= */
-const APP_VERSION='2.1';
+const APP_VERSION='2.2';
 const KEY='trainlog_v1'; // same storage key since v1 so data carries over
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -243,7 +250,7 @@ function cssVar(n){return getComputedStyle(document.documentElement).getProperty
 /* ======================= DATA ======================= */
 const PALETTE=['#ff6b2c','#3d9bff','#ffc233','#34d399','#a78bfa','#f472b6','#22d3ee','#ef4444'];
 const TYPE_COL={strength:'#ff6b2c',run:'#a78bfa',hyrox:'#ffc233',cardio:'#34d399'};
-const ex=(name,sets=3,reps='8-12',rest=90)=>({name,sets,reps,rest,group:null});
+const ex=(name,sets=2,rest=90)=>({name,sets,reps:'',rest,group:null});
 /* Hyrox station library – unit: m (metres), reps, steps, s (time) */
 const STATIONS={
  run:{name:'Run',unit:'m',def:1000},
@@ -269,9 +276,9 @@ const HX_TEMPLATES=[
  {id:'hx_half',name:'Hyrox half sim',type:'hyrox',day:'',color:'#f472b6',short:'HS',exercises:[],blocks:[{name:'Half race',rounds:1,rest:0,stations:[['ski',1000],['sledpush',50],['row',1000],['wallballs',50]].flatMap(([s,a])=>[st('run',1000),st(s,a)])}]},
  {id:'hx_focus',name:'Hyrox station focus',type:'hyrox',day:'',color:'#22d3ee',short:'SF',exercises:[],blocks:[{name:'Sleds',rounds:4,rest:90,stations:[st('sledpush',25),st('sledpull',25)]},{name:'Carry & lunge',rounds:3,rest:90,stations:[st('farmers',100),st('sandbag',50)]},{name:'Burpees + wall balls',rounds:2,rest:120,stations:[st('bbj',40),st('wallballs',30)]}]}];
 const DEFAULT_TEMPLATES=[
- {id:'push',name:'Push',type:'strength',day:1,color:'#ff6b2c',short:'Pu',exercises:[ex('Incline Smith press',3,'6-10',120),ex('Flat DB press',3,'8-12',120),ex('Overhead press',3,'6-10',120),ex('Cable flies',3,'12-15',75),ex('Cable laterals',3,'12-20',60),ex('Tricep extensions',3,'10-15',60)]},
+ {id:'push',name:'Push',type:'strength',day:1,color:'#ff6b2c',short:'Pu',exercises:[ex('Incline Smith press',2,120),ex('Flat DB press',2,120),ex('Overhead press',2,120),ex('Cable flies',2,75),ex('Cable laterals',2,60),ex('Tricep extensions',2,60)]},
  {id:'run',name:'Run',type:'run',day:2,color:'#a78bfa',short:'Ru',exercises:[]},
- {id:'pull',name:'Pull',type:'strength',day:3,color:'#3d9bff',short:'Pl',exercises:[ex('Pull-ups / lat pulldown',3,'6-10',120),ex('Row',3,'8-12',120),ex('Single-arm pulldown / lat pullover',3,'10-12',75),ex('Lower back',3,'10-15',75),ex('Bayesian curl',3,'10-12',60),ex('Hammer curls',3,'10-12',60),ex('Preacher / spider curls',3,'10-15',60)]},
+ {id:'pull',name:'Pull',type:'strength',day:3,color:'#3d9bff',short:'Pl',exercises:[ex('Pull-ups / lat pulldown',2,120),ex('Row',2,120),ex('Single-arm pulldown / lat pullover',2,75),ex('Lower back',2,75),ex('Bayesian curl',2,60),ex('Hammer curls',2,60),ex('Preacher / spider curls',2,60)]},
  {id:'hyrox',name:'Legs + Hyrox',type:'hyrox',day:5,color:'#ffc233',short:'Hx',exercises:[],blocks:HX_FRIDAY},
  {id:'cardio',name:'Cardio',type:'cardio',day:6,color:'#34d399',short:'Ca',exercises:[]},
  ...HX_TEMPLATES];
@@ -291,7 +298,7 @@ let DB=load();
 function freshDB(){return {templates:JSON.parse(JSON.stringify(DEFAULT_TEMPLATES)),sessions:[],active:null,settings:{}};}
 function load(){let d=null;try{d=JSON.parse(localStorage.getItem(KEY));}catch(e){}if(!d||!d.templates)d=freshDB();return migrate(d);}
 function migrate(d){
-  d.settings=Object.assign({startDate:ymd(mondayOf(new Date())),runRotation:['A','B','C'],deloadEvery:5,defaultRest:90,maxHR:'',theme:'auto',weeklyGoal:4,dbStep:2,machineStep:2.5,plates:[25,20,15,10,5,2.5,1.25],barKg:20,smithBarKg:20,event:{name:'',date:''},setupDone:false},d.settings||{});
+  d.settings=Object.assign({startDate:ymd(mondayOf(new Date())),runRotation:['A','B','C'],deloadEvery:5,defaultRest:90,maxHR:'',theme:'auto',weeklyGoal:4,dbStep:2,machineStep:2.5,plates:[25,20,15,10,5,2.5,1.25],barKg:20,smithBarKg:20,event:{name:'',date:''},setupDone:false,restMode:'off'},d.settings||{});
   if(!d.settings.event)d.settings.event={name:'',date:''};
   d.sessions=d.sessions||[];d.bodyweight=d.bodyweight||[];d.exMeta=d.exMeta||{};d.customStations=d.customStations||{};
   const oldT=d.hyroxTargets||{};
@@ -305,7 +312,9 @@ function migrate(d){
     (s.exercises||[]).forEach(e=>{if(e.group===undefined)e.group=null;e.sets.forEach(x=>{if(!x.kind)x.kind='N';});});
     if(s.hyrox&&!Array.isArray(s.hyrox.blocks)){const H=s.hyrox;s.hyrox={loads:{sledpush:H.sledKg||'',wallballs:H.wallBallKg||''},blocks:OLD.map(([k,r,rest,name,sts])=>({name,rounds:r,rest,stations:sts.map(([sid,a])=>st(sid,a)),results:(H.blocks&&H.blocks[k])||Array.from({length:r},()=>({splits:sts.map(()=>null),total:null}))}))};}};
   d.sessions.forEach(fix);fix(d.active);
-  d.version=2.1;return d;
+  // v2.2: 2 sets per exercise in every strength template (one-off)
+  if(!d.v22){d.templates.forEach(t=>{if(t.type==='strength')t.exercises.forEach(e=>{e.sets=2;});});d.settings.restMode=d.settings.restMode||'off';d.v22=true;}
+  d.version=2.2;return d;
 }
 function save(){try{localStorage.setItem(KEY,JSON.stringify(DB));}catch(e){toast('⚠️ Could not save – storage full?');}}
 
@@ -335,7 +344,7 @@ const PLATE_COL={25:'#ef4444',20:'#3d9bff',15:'#f59e0b',10:'#22c55e',5:'#64748b'
 /* set kinds: N normal, W warm-up (not counted), D drop (counts to volume, not PRs), F failure (counts) */
 const working=e=>e.sets.filter(x=>x.done&&x.kind!=='W'&&+x.reps>0);
 const prSets=e=>e.sets.filter(x=>x.done&&(x.kind==='N'||x.kind==='F')&&+x.reps>0);
-const exVol=e=>working(e).reduce((a,x)=>a+(+x.kg||0)*(+x.reps||0),0);
+const exVol=e=>working(e).reduce((a,x)=>a+(+x.kg||0)*(+x.reps||0)+(x.drops||[]).reduce((b,d)=>b+(+d.kg||0)*(+d.reps||0),0),0);
 function sortedSessions(){return [...DB.sessions].sort((a,b)=>b.date.localeCompare(a.date));}
 function lastExercise(name){const n=name.toLowerCase();for(const s of sortedSessions()){const e=(s.exercises||[]).find(x=>x.name.toLowerCase()===n);if(e&&e.sets.some(x=>x.done))return e;}return null;}
 function exHistory(name){const n=name.toLowerCase();return [...DB.sessions].sort((a,b)=>a.date.localeCompare(b.date)).map(s=>{const e=(s.exercises||[]).find(x=>x.name.toLowerCase()===n);if(!e)return null;const w=prSets(e);if(!w.length)return null;const top=w.reduce((a,x)=>+x.kg>+a.kg?x:a,w[0]);return {s,e,w,all:working(e),date:s.date,e1:Math.max(...w.map(x=>e1rm(x.kg,x.reps))),top:+top.kg||0,topR:+top.reps,vol:exVol(e)};}).filter(Boolean);}
@@ -517,7 +526,7 @@ function renderSetup(){const S=DB.settings,step=+param||0;
   if(step===2)h+=`<div class="card"><label style="margin-top:0">Max heart rate (bpm) – optional</label><input inputmode="numeric" value="${S.maxHR}" placeholder="e.g. 195" onchange="DB.settings.maxHR=this.value;save();renderSetup()">
     <div class="mut xs" style="margin-top:6px">Use the highest you've seen on a hard effort. Unlocks heart-rate zones and your 4×4 target range. You can add it later.</div>${S.maxHR?zoneList():''}</div>`;
   if(step===3)h+=`<div class="onb-hero"><div class="ic" style="background:linear-gradient(135deg,#34d399,#15803d)">✓</div><h2>You're set</h2><div class="mut">Your Push / Run / Pull / Legs + Hyrox / Cardio week is loaded. Change anything in <b>Workouts</b> or <b>Settings</b>.</div></div>
-    <div class="card sm"><div class="li">💡 <span class="grow">Tap the <b>set number</b> for warm-up, drop or failure sets</span></div><div class="li">📌 <span class="grow">Add a <b>note</b> to any exercise from its ⋯ menu – seat heights, grips</span></div><div class="li">🏁 <span class="grow">Booked a Hyrox? Add it under <b>Settings → Event</b></span></div></div>`;
+    <div class="card sm"><div class="li">💡 <span class="grow">Tap the <b>set number</b> for warm-up, failure, drops or partials</span></div><div class="li">📌 <span class="grow">Add a <b>note</b> to any exercise from its ⋯ menu – seat heights, grips</span></div><div class="li">🏁 <span class="grow">Booked a Hyrox? Add it under <b>Settings → Event</b></span></div></div>`;
   h+=`<div class="row" style="margin-top:14px">${step>0?`<button class="btn lg" onclick="go('setup',${step-1},false)">Back</button>`:''}<button class="btn p lg grow" onclick="${step<3?`go('setup',${step+1},false)`:'finishSetup()'}">${step<3?'Continue':'Start training'}</button></div>`;
   $('#app').innerHTML=h;}
 function finishSetup(){DB.settings.setupDone=true;save();go('home');}
@@ -533,7 +542,7 @@ function startSession(tid){
   const t=DB.templates.find(x=>x.id===tid);if(!t)return;const now=new Date();
   const s={id:uid(),templateId:t.id,name:t.name,type:t.type,color:t.color,date:now.toISOString(),start:Date.now(),notes:'',rpe:null,deload:isDeload(now)};
   if(t.type==='strength'){
-    s.exercises=t.exercises.map(e=>{const n=s.deload?Math.max(1,Math.round(e.sets*2/3)):e.sets;return {name:e.name,target:e.reps,rest:e.rest,group:e.group||null,sets:Array.from({length:n},()=>blankSet())};});
+    s.exercises=t.exercises.map(e=>{const n=s.deload?Math.max(1,Math.round(e.sets*2/3)):e.sets;return {name:e.name,target:'',rpe:'',rest:e.rest,group:e.group||null,sets:Array.from({length:n},()=>blankSet())};});
   }else if(t.type==='run'){const rt=runOfWeek(now);s.run=newRun(rt);s.name='Run – '+RUN_TYPES[rt].name;}
   else if(t.type==='hyrox'){const L=lastLoads();
     s.hyrox={loads:{},blocks:(t.blocks||[]).map(b=>({name:b.name,rounds:b.rounds,rest:b.rest,stations:b.stations.map(x=>({...x})),results:Array.from({length:b.rounds},()=>({splits:b.stations.map(()=>null),total:null}))}))};
@@ -566,44 +575,64 @@ function discard(){if(confirm('Discard this workout? Nothing will be saved.')){D
 
 /* ---------- strength ---------- */
 function strengthUI(s){
-  ui.sug={};let h='',i=0;const ex=s.exercises;
+  let h='',i=0;const ex=s.exercises;const rm=restMode();
+  h+=`<div class="card row" style="padding:10px 12px"><span class="mut sm" style="font-weight:700">Rest</span><div class="seg grow" style="margin:0">${[['off','Off'],['auto','Auto'],['timer','Timer']].map(([k,n])=>`<button class="${rm===k?'on':''}" onclick="setRestMode('${k}')">${n}</button>`).join('')}</div></div>`;
+  if(rm==='auto')h+=`<div class="mut xs" style="margin:-6px 4px 10px">Auto: no countdown – your rest is worked out from when you finish a set to when you start entering the next one.</div>`;
   if(!ex.length)h+=emptyState('🏋️','No exercises yet','Add your first exercise below');
   while(i<ex.length){const g=ex[i].group;if(g){let j=i;while(j<ex.length&&ex[j].group===g)j++;if(j-i>1){h+=`<div class="ssbox" style="--c:${s.color}"><div class="sslabel">SUPERSET</div>`;for(let k=i;k<j;k++)h+=exCard(s,k);h+='</div>';i=j;continue;}}h+=exCard(s,i);i++;}
   return h+`<button class="btn block" style="margin-top:4px" onclick="addExercise()">+ Add exercise</button>`;
 }
+function restMode(){return DB.settings.restMode||'off';}
+function setRestMode(m){DB.settings.restMode=m;if(m!=='timer')Timer.stop();save();renderWorkout();}
 const isMain=x=>x.kind==='N'||x.kind==='F';
 function mainIndex(e,si){let k=0;for(let i=0;i<si;i++)if(isMain(e.sets[i]))k++;return k;}
-function ghost(ei,si){const e=DB.active.exercises[ei],x=e.sets[si];if(!isMain(x))return {kg:'',reps:''};const sug=ui.sug[ei];if(!sug)return {kg:'',reps:''};const k=mainIndex(e,si);const g=sug.sets[k]||sug.sets[sug.sets.length-1];return {kg:g.kg,reps:g.reps};}
+/* weight carries over ONLY from the previous set of the same exercise today (warm-up→warm-up, working→working). First set = blank. */
+function ghost(ei,si){const e=DB.active.exercises[ei],x=e.sets[si];const W=x.kind==='W';
+  for(let j=si-1;j>=0;j--){const y=e.sets[j];if((y.kind==='W')!==W||y.kind==='D')continue;if(y.kg!==''&&y.kg!=null)return {kg:y.kg,reps:''};}
+  return {kg:'',reps:''};}
 function prevText(ei,si){const e=DB.active.exercises[ei],x=e.sets[si];if(x.kind==='D')return '↘ drop';const last=lastExercise(e.name);if(!last)return '–';
   const same=x.kind==='W'?last.sets.filter(y=>y.done&&y.kind==='W'):last.sets.filter(y=>y.done&&isMain(y));let k=0;for(let i=0;i<si;i++)if(x.kind==='W'?e.sets[i].kind==='W':isMain(e.sets[i]))k++;const p=same[k];return p?`${fmtKg(p.kg)||'BW'}×${p.reps}`:'–';}
 function setLabel(e,si){const x=e.sets[si];if(x.kind==='W')return 'W';if(x.kind==='D')return 'D';const n=mainIndex(e,si)+1;return x.kind==='F'?'F'+n:n;}
+/* field helpers: kg, reps, partials, d0kg, d0reps … */
+function fget(x,f){const m=/^d(\d+)(kg|reps)$/.exec(f);if(m)return (x.drops&&x.drops[+m[1]]||{})[m[2]];return x[f];}
+function fset(x,f,v){const m=/^d(\d+)(kg|reps)$/.exec(f);if(m){x.drops[+m[1]][m[2]]=v;}else x[f]=v;}
+const isKgF=f=>/kg$/.test(f);
 function exCard(s,ei){
-  const e=s.exercises[ei];const sug=ui.sug[ei]=suggestFor(e.name,e.target,s.deload);const m=meta(e.name);
+  const e=s.exercises[ei];const m=meta(e.name);const rm=restMode();
   const work=e.sets.filter(x=>x.kind!=='W');const complete=work.length&&work.every(x=>x.done);
-  if(complete&&!ui.open.has(ei)){const prs=e.sets.filter(x=>x.pr).length;return `<div class="card ex collapsed" onclick="ui.open.add(${ei});renderWorkout()"><div class="ck">✓</div><div class="grow"><div class="exn ell">${esc(e.name)}${prs?' <span class="chip acc">🏆 '+prs+'</span>':''}</div><div class="mut sm ell num">${work.map(x=>`${x.kind==='D'?'↘':''}${fmtKg(x.kg)||'BW'}×${x.reps}`).join(' · ')}</div></div><span class="chev">›</span></div>`;}
+  if(complete&&!ui.open.has(ei)){const prs=e.sets.filter(x=>x.pr).length;return `<div class="card ex collapsed" onclick="ui.open.add(${ei});renderWorkout()"><div class="ck">✓</div><div class="grow"><div class="exn ell">${esc(e.name)}${prs?' <span class="chip acc">🏆 '+prs+'</span>':''}${e.rpe?` <span class="chip">RPE ${e.rpe}</span>`:''}</div><div class="mut sm ell num">${work.map(setTxt).join(' · ')}</div></div><span class="chev">›</span></div>`;}
   const hist=exHistory(e.name).slice(-8).map(x=>x.e1);
-  return `<div class="card ex" id="ex${ei}"><div class="exh"><div class="grow" onclick="openEx(${q(e.name)})"><div class="exn">${esc(e.name)}</div><div class="mut sm">${esc(e.target||'')} reps · ${fmtTime(e.rest)} rest · ${m.muscle}</div></div>${spark(hist,s.color,56,24)}<button class="icon-btn" onclick="exMenu(${ei})">⋯</button></div>
+  return `<div class="card ex" id="ex${ei}"><div class="exh"><div class="grow" onclick="openEx(${q(e.name)})"><div class="exn">${esc(e.name)}</div><div class="mut sm">${m.muscle}${rm==='timer'?' · '+fmtTime(e.rest)+' rest':''}</div></div>${spark(hist,s.color,56,24)}<button class="chip ${e.rpe?'acc':''}" style="border:0;padding:7px 10px" onclick="rpeSheet(${ei})">RPE ${e.rpe||'–'}</button><button class="icon-btn" onclick="exMenu(${ei})">⋯</button></div>
   ${m.note?`<div class="note" onclick="editNote(${q(e.name)})">📌 ${esc(m.note)}</div>`:''}
-  ${sug?`<div class="sugg"><span class="chip acc">${sug.label}</span><span class="mut xs">${sug.why}</span></div>`:''}
-  <div class="sethead"><span>Set</span><span>Prev</span><span>kg</span><span>Reps</span><span>RPE</span><span></span></div>
-  ${e.sets.map((x,si)=>{const g=ghost(ei,si);const kc={W:'w',D:'d',F:'f'}[x.kind]||'';
-    const cell=(f,val,gv)=>`<button class="cell ${val===''||val==null?'ghost':''}" id="c-${ei}-${si}-${f}" onclick="openKp(${ei},${si},'${f}')">${val!==''&&val!=null?(f==='kg'?fmtKg(val):esc(val)):(gv!==''&&gv!=null?(f==='kg'?fmtKg(gv):gv):'–')}</button>`;
-    return `<div class="sw" data-ei="${ei}" data-si="${si}"><div class="del">Delete</div><div class="fg"><div class="setrow ${x.done?'done':''} ${x.kind==='D'?'drop':''}" id="r-${ei}-${si}">
+  <div class="sethead"><span>Set</span><span>Prev</span><span>kg</span><span>Reps</span><span></span></div>
+  ${e.sets.map((x,si)=>{const g=ghost(ei,si);const kc={W:'w',D:'d',F:'f'}[x.kind]||'';const dn=x.done?'done':'';
+    const cell=(f,val,gv)=>`<button class="cell ${val===''||val==null?'ghost':''}" id="c-${ei}-${si}-${f}" onclick="openKp(${ei},${si},'${f}')">${val!==''&&val!=null?(isKgF(f)?fmtKg(val):esc(val)):(gv!==''&&gv!=null?(isKgF(f)?fmtKg(gv):gv):'–')}</button>`;
+    let sub=(x.drops||[]).map((d,di)=>`<div class="setrow sub ${dn}"><span class="cell setno d">↘</span><div class="prev">drop ${di+1}</div>${cell('d'+di+'kg',d.kg,'')}${cell('d'+di+'reps',d.reps,'')}<button class="tick x" onclick="rmDrop(${ei},${si},${di})">✕</button></div>`).join('');
+    if(x.partials!==undefined&&x.partials!==null)sub+=`<div class="setrow sub ${dn}"><span class="cell setno p">P</span><div class="prev">partials</div><span></span>${cell('partials',x.partials,'')}<button class="tick x" onclick="rmPartials(${ei},${si})">✕</button></div>`;
+    const rl=x.done&&x.rest&&rm==='auto'?`<div class="restln">⏱ ${fmtTime(x.rest)} rest before this set</div>`:'';
+    return `<div class="sw" data-ei="${ei}" data-si="${si}"><div class="del">Delete</div><div class="fg"><div class="setrow ${dn} ${x.kind==='D'?'drop':''}" id="r-${ei}-${si}">
     <button class="cell setno ${kc}" onclick="setTypeMenu(${ei},${si})">${setLabel(e,si)}</button><div class="prev ${x.pr&&x.done?'pr':''}">${x.pr&&x.done?'🏆 PR':prevText(ei,si)}</div>
-    ${cell('kg',x.kg,g.kg)}${cell('reps',x.reps,g.reps)}${cell('rpe',x.rpe,'')}
-    <button class="tick ${x.done?'on':''}" onclick="tick(${ei},${si})">✓</button></div></div></div>`;}).join('')}
-  <div class="row" style="margin-top:2px"><button class="btn ghost sm grow" onclick="addSet(${ei})">+ Add set</button><button class="btn ghost sm grow" onclick="addWarmups(${ei})">+ Warm-ups</button></div></div>`;
+    ${cell('kg',x.kg,g.kg)}${cell('reps',x.reps,g.reps)}
+    <button class="tick ${x.done?'on':''}" onclick="tick(${ei},${si})">✓</button></div>${sub}${rl}</div></div>`;}).join('')}
+  <div class="exbtns"><button class="btn ghost sm" onclick="addWarmups(${ei})">+ Warm-up</button><button class="btn ghost sm" onclick="addSet(${ei})">+ Set</button><button class="btn ghost sm" onclick="addDrop(${ei})">↘ Drop</button><button class="btn ghost sm" onclick="addPartials(${ei})">+ Partials</button></div></div>`;
 }
+/* text for a set incl. drops & partials, e.g. 15×5 ↘10×3 +4p */
+function setTxt(x){let t=`${x.kind==='D'?'↘':x.kind==='F'?'💥':''}${fmtKg(x.kg)||'BW'}×${x.reps}`;(x.drops||[]).forEach(d=>{if(+d.reps)t+=` ↘${fmtKg(d.kg)||'BW'}×${d.reps}`;});if(+x.partials)t+=` +${x.partials}p`;return t;}
+function rpeSheet(ei){const e=DB.active.exercises[ei];
+  sheet(`<h3>RPE – ${esc(e.name)}</h3><div class="mut sm" style="margin:-4px 0 10px">How hard was this exercise overall? 10 = nothing left</div><div class="rpe" style="grid-template-columns:repeat(4,1fr);margin-bottom:10px">${[6,7,7.5,8,8.5,9,9.5,10].map(n=>`<button class="${+e.rpe===n?'on':''}" onclick="DB.active.exercises[${ei}].rpe=${n};save();closeSheet();renderWorkout()">${n}</button>`).join('')}</div>${e.rpe?`<button class="btn ghost block danger" onclick="DB.active.exercises[${ei}].rpe='';save();closeSheet();renderWorkout()">Clear RPE</button>`:''}`);}
 function tick(ei,si){
   audioUnlock();const s=DB.active,e=s.exercises[ei],x=e.sets[si];let flash=false;
-  if(!x.done){const g=ghost(ei,si);if(x.kg==='')x.kg=g.kg??'';if(x.reps==='')x.reps=g.reps??'';
+  if(!x.done){const g=ghost(ei,si);if(x.kg==='')x.kg=g.kg??'';
     if(x.reps===''||x.reps==null){toast('Enter your reps first');return openKp(ei,si,'reps');}
-    x.done=true;haptic();x.pr=livePR(ei,si);
+    x.done=true;haptic();const now=Date.now();
+    if(s.lastDoneAt){const st=x.startAt&&x.startAt>s.lastDoneAt?x.startAt:now;x.rest=Math.max(0,Math.round((st-s.lastDoneAt)/1000));}
+    x.doneAt=now;s.lastDoneAt=now;
+    x.pr=livePR(ei,si);
     if(x.pr){flash=true;toast('🏆 '+x.pr+' – '+e.name);beep(2,1320);confetti(28);}
     restAfter(ei,si);
     const work=e.sets.filter(y=>y.kind!=='W');if(work.every(y=>y.done))ui.open.delete(ei);
     if(flash)ui.open.add(ei);}
-  else{x.done=false;x.pr=null;}
+  else{x.done=false;x.pr=null;delete x.rest;}
   save();closeKp();renderWorkout();
   if(flash){const r=$(`#r-${ei}-${si}`);r&&r.classList.add('prflash');}
 }
@@ -616,43 +645,46 @@ function livePR(ei,si){const s=DB.active,e=s.exercises[ei],x=e.sets[si];if(!isMa
   const same=pool.filter(y=>+y.reps===r);if(same.length&&kg>Math.max(...same.map(y=>+y.kg||0))+0.01)return r+'-rep PR';
   const atKg=pool.filter(y=>(+y.kg||0)>=kg-0.01);if(atKg.length&&r>Math.max(...atKg.map(y=>+y.reps)))return 'Most reps at '+fmtKg(kg)+' kg';
   return null;}
-function restAfter(ei,si){const s=DB.active,e=s.exercises[ei],x=e.sets[si];
-  const nx=e.sets[si+1];if(nx&&nx.kind==='D'&&!nx.done){toast('↘ Straight into your drop set');return;}
+function restAfter(ei,si){if(restMode()!=='timer')return;const s=DB.active,e=s.exercises[ei],x=e.sets[si];
   if(e.group){let last=ei;while(s.exercises[last+1]&&s.exercises[last+1].group===e.group)last++;if(ei<last){toast('→ Now: '+s.exercises[ei+1].name);return;}}
   Timer.start(x.kind==='W'?Math.min(60,e.rest||60):(e.rest||DB.settings.defaultRest));}
 function setTypeMenu(ei,si){const e=DB.active.exercises[ei],x=e.sets[si];
   const opt=(k,ic,t,d)=>`<button onclick="setKind(${ei},${si},'${k}')" style="${x.kind===k?'box-shadow:inset 0 0 0 2px var(--acc)':''}">${ic} ${t} <span class="mut sm">· ${d}</span></button>`;
   sheet(`<h3>${esc(e.name)} · set ${setLabel(e,si)}</h3><div class="menu">${opt('N','①','Normal set','counts for everything')}${opt('W','🔥','Warm-up','not counted')}${opt('F','💥','Failure set','taken to failure, counts')}
-  ${x.kind!=='W'?`<button onclick="addDrop(${ei},${si})">↘ Add drop set after this <span class="mut sm">· ~80% weight, no rest</span></button>`:''}
+  ${x.kind!=='W'?`<button onclick="closeSheet();addDrop(${ei},${si})">↘ Add a drop to this set <span class="mut sm">· e.g. then 10 kg × 3</span></button>
+  <button onclick="closeSheet();addPartials(${ei},${si})">➕ Add partial reps <span class="mut sm">· to finish the set</span></button>`:''}
   <button class="danger" onclick="closeSheet();delSet(${ei},${si})">Delete set</button></div>`);}
-function setKind(ei,si,k){const x=DB.active.exercises[ei].sets[si];x.kind=k;if(k==='W')x.pr=null;save();closeSheet();renderWorkout();}
-function addDrop(ei,si){const e=DB.active.exercises[ei];let j=si+1;while(e.sets[j]&&e.sets[j].kind==='D')j++;const base=+e.sets[j-1].kg||+ghost(ei,si).kg||0;const step=stepFor(e.name)||2.5;
-  e.sets.splice(j,0,{kind:'D',kg:base?Math.max(step,roundTo(base*0.8,step)):'',reps:'',rpe:'',done:false});ui.open.add(ei);save();closeSheet();renderWorkout();toast('Drop set added – no rest between');}
-function addSet(ei){const e=DB.active.exercises[ei];const l=[...e.sets].reverse().find(isMain);e.sets.push({kind:'N',kg:l&&l.kg!==''?l.kg:'',reps:'',rpe:'',done:false});ui.open.add(ei);save();renderWorkout();}
+function setKind(ei,si,k){const e=DB.active.exercises[ei],x=e.sets[si];if(k==='W'&&x.kind!=='W'){x.pr=null;delete x.drops;delete x.partials;e.sets.splice(si,1);const at=e.sets.findIndex(y=>y.kind!=='W');e.sets.splice(at<0?e.sets.length:at,0,x);}x.kind=k;save();closeSheet();renderWorkout();}
+/* last working set to attach a drop/partials to: the last ticked one, else the last one */
+function lastWorkIdx(e){let idx=-1;e.sets.forEach((y,i)=>{if(y.kind!=='W'&&y.done)idx=i;});if(idx<0)e.sets.forEach((y,i)=>{if(y.kind!=='W')idx=i;});return idx;}
+function addDrop(ei,si){const e=DB.active.exercises[ei];if(si==null)si=lastWorkIdx(e);if(si<0)return toast('Add a working set first');const x=e.sets[si];x.drops=x.drops||[];x.drops.push({kg:'',reps:''});ui.open.add(ei);save();renderWorkout();openKp(ei,si,'d'+(x.drops.length-1)+'kg');}
+function rmDrop(ei,si,di){const x=DB.active.exercises[ei].sets[si];x.drops.splice(di,1);if(!x.drops.length)delete x.drops;save();renderWorkout();}
+function addPartials(ei,si){const e=DB.active.exercises[ei];if(si==null)si=lastWorkIdx(e);if(si<0)return toast('Add a working set first');const x=e.sets[si];if(x.partials==null)x.partials='';ui.open.add(ei);save();renderWorkout();openKp(ei,si,'partials');}
+function rmPartials(ei,si){delete DB.active.exercises[ei].sets[si].partials;save();renderWorkout();}
+function addSet(ei){const e=DB.active.exercises[ei];e.sets.push(blankSet());ui.open.add(ei);save();renderWorkout();}
 function delSet(ei,si){const e=DB.active.exercises[ei];const [x]=e.sets.splice(si,1);save();renderWorkout();toast('Set deleted',()=>{e.sets.splice(si,0,x);save();renderWorkout();});}
-function addWarmups(ei){const e=DB.active.exercises[ei];const fi=e.sets.findIndex(isMain);const g=fi>=0?ghost(ei,fi):{};const top=+(fi>=0&&e.sets[fi].kg)||+g.kg;
-  if(!top)return toast('Set a working weight first');const step=stepFor(e.name)||2.5,bar=barFor(e.name)||0;
-  const w=[[.5,8],[.75,4]].map(([p,r])=>({kind:'W',kg:Math.max(bar,roundTo(top*p,step)),reps:r,rpe:'',done:false}));e.sets=[...w,...e.sets.filter(x=>x.kind!=='W'||x.done)];ui.open.add(ei);save();renderWorkout();toast('Added 2 warm-up sets');}
+/* one warm-up per tap, always placed above the working sets */
+function addWarmups(ei){const e=DB.active.exercises[ei];const at=e.sets.findIndex(x=>x.kind!=='W');e.sets.splice(at<0?e.sets.length:at,0,blankSet('W'));ui.open.add(ei);save();renderWorkout();}
 function exerciseNames(){const n=new Set();DB.templates.forEach(t=>t.exercises.forEach(e=>n.add(e.name)));DB.sessions.forEach(s=>(s.exercises||[]).forEach(e=>n.add(e.name)));return [...n].sort();}
 function exDatalist(){return `<datalist id="exList">${exerciseNames().map(n=>`<option value="${esc(n)}">`).join('')}</datalist>`;}
 function addExercise(){sheet(`<h3>Add exercise</h3><input id="exName" list="exList" placeholder="Search or type a new exercise" autocomplete="off">${exDatalist()}
-  <div class="field-row"><div><label>Sets</label><input id="exSets" inputmode="numeric" value="3"></div><div><label>Target reps</label><input id="exReps" value="8-12"></div><div><label>Rest (s)</label><input id="exRest" inputmode="numeric" value="${DB.settings.defaultRest}"></div></div>
+  <div class="field-row"><div><label>Sets</label><input id="exSets" inputmode="numeric" value="2"></div><div><label>Rest (s, timer mode)</label><input id="exRest" inputmode="numeric" value="${DB.settings.defaultRest}"></div></div>
   <button class="btn p block lg" style="margin-top:14px" onclick="doAddExercise()">Add exercise</button>`);}
-function doAddExercise(){const n=$('#exName').value.trim();if(!n)return toast('Enter a name');const c=+$('#exSets').value||3;DB.active.exercises.push({name:n,target:$('#exReps').value,rest:+$('#exRest').value||90,group:null,sets:Array.from({length:c},()=>blankSet())});save();closeSheet();renderWorkout();setTimeout(()=>{if(!DB.active)return;const el=$('#ex'+(DB.active.exercises.length-1));el&&el.scrollIntoView({behavior:'smooth',block:'center'});},50);}
+function doAddExercise(){const n=$('#exName').value.trim();if(!n)return toast('Enter a name');const c=+$('#exSets').value||2;DB.active.exercises.push({name:n,target:'',rpe:'',rest:+$('#exRest').value||90,group:null,sets:Array.from({length:c},()=>blankSet())});save();closeSheet();renderWorkout();setTimeout(()=>{if(!DB.active)return;const el=$('#ex'+(DB.active.exercises.length-1));el&&el.scrollIntoView({behavior:'smooth',block:'center'});},50);}
 function exMenu(ei){const s=DB.active,e=s.exercises[ei],nx=s.exercises[ei+1];const linked=nx&&e.group&&nx.group===e.group;const note=meta(e.name).note;
   sheet(`<h3>${esc(e.name)}</h3><div class="menu">
   <button onclick="editNote(${q(e.name)})">📌 ${note?'Edit note':'Add note'} <span class="mut sm">· seat height, grip, cues</span></button>
   ${nx?`<button onclick="closeSheet();linkToggle(DB.active.exercises,${ei});save();renderWorkout()">${linked?'✂️ Unlink superset':'🔗 Superset with '+esc(nx.name)}</button>`:''}
-  <button onclick="closeSheet();addWarmups(${ei})">🔥 Add warm-up sets</button>
-  <button onclick="closeSheet();editExSheet(${ei})">✏️ Edit target, rest or swap</button>
+  <button onclick="closeSheet();addWarmups(${ei})">🔥 Add a warm-up set</button>
+  <button onclick="closeSheet();editExSheet(${ei})">✏️ Edit rest or swap</button>
   <button onclick="closeSheet();openEx(${q(e.name)})">📈 History & PRs</button>
   <div class="row"><button class="grow" onclick="moveEx(${ei},-1)">↑ Move up</button><button class="grow" onclick="moveEx(${ei},1)">↓ Move down</button></div>
   <button class="danger" onclick="closeSheet();removeEx(${ei})">Remove exercise</button></div>`);}
 function editNote(name){sheet(`<h3>📌 Note – ${esc(name)}</h3><div class="mut sm" style="margin:-4px 0 8px">Shows every time this exercise comes up.</div><textarea id="noteT" rows="3" placeholder="e.g. Seat 4, cable pin 3, neutral grip">${esc(meta(name).note)}</textarea>
   <div class="row" style="margin-top:12px">${meta(name).note?`<button class="btn danger" onclick="setMeta(${q(name)},'note','');closeSheet();render()">Remove</button>`:''}<button class="btn p grow lg" onclick="setMeta(${q(name)},'note',$('#noteT').value.trim());closeSheet();render()">Save note</button></div>`);setTimeout(()=>$('#noteT')&&$('#noteT').focus(),300);}
 function editExSheet(ei){const e=DB.active.exercises[ei];sheet(`<h3>Edit exercise</h3><label>Exercise (type to swap)</label><input id="rn" list="exList" value="${esc(e.name)}">${exDatalist()}
-  <div class="field-row"><div><label>Target reps</label><input id="tg" value="${esc(e.target)}"></div><div><label>Rest (s)</label><input id="rs" inputmode="numeric" value="${e.rest}"></div></div>
-  <button class="btn p block lg" style="margin-top:14px" onclick="const e=DB.active.exercises[${ei}];e.name=$('#rn').value.trim()||e.name;e.target=$('#tg').value;e.rest=+$('#rs').value||e.rest;save();closeSheet();renderWorkout()">Save</button>`);}
+  <div class="field-row"><div><label>Rest (s, timer mode)</label><input id="rs" inputmode="numeric" value="${e.rest}"></div></div>
+  <button class="btn p block lg" style="margin-top:14px" onclick="const e=DB.active.exercises[${ei}];e.name=$('#rn').value.trim()||e.name;e.rest=+$('#rs').value||e.rest;save();closeSheet();renderWorkout()">Save</button>`);}
 function moveEx(i,d){const a=DB.active.exercises,j=i+d;if(j<0||j>=a.length)return;[a[i],a[j]]=[a[j],a[i]];normalizeGroups(a);ui.open.clear();save();closeSheet();renderWorkout();}
 function removeEx(ei){const a=DB.active.exercises;const [x]=a.splice(ei,1);normalizeGroups(a);ui.open.clear();save();renderWorkout();toast('Exercise removed',()=>{a.splice(ei,0,x);save();renderWorkout();});}
 function linkToggle(arr,ei){const a=arr[ei],b=arr[ei+1];if(!b)return;
@@ -663,25 +695,31 @@ function normalizeGroups(arr){const idx={};arr.forEach((x,i)=>{if(x.group)(idx[x
 
 /* ---------- custom number pad ---------- */
 let KP=null;
-function openKp(ei,si,field){audioUnlock();const x=DB.active.exercises[ei].sets[si];const g=ghost(ei,si);let v=x[field];if(v===''||v==null)v=field==='rpe'?'':(g[field]??'');
+function openKp(ei,si,field){audioUnlock();const x=DB.active.exercises[ei].sets[si];if(!x)return;const g=field==='kg'?ghost(ei,si):{};let v=fget(x,field);if(v===''||v==null)v=g[field]??'';
+  if(!x.done&&!x.startAt&&(field==='kg'||field==='reps'))x.startAt=Date.now();
   document.querySelectorAll('.cell.focus').forEach(c=>c.classList.remove('focus'));KP={ei,si,field,val:v===''?'':String(v),fresh:true};
   document.body.classList.add('kp-open');renderKp();$('#kp').classList.add('open');const c=$(`#c-${ei}-${si}-${field}`);if(c){c.classList.add('focus');setTimeout(()=>c.scrollIntoView({behavior:'smooth',block:'center'}),60);}}
 function closeKp(){if(!KP&&!document.body.classList.contains('kp-open'))return;KP=null;$('#kp').classList.remove('open');document.body.classList.remove('kp-open');document.querySelectorAll('.cell.focus').forEach(c=>c.classList.remove('focus'));}
-function renderKp(){const {ei,si,field,val}=KP;const e=DB.active.exercises[ei];const step=field==='kg'?(stepFor(e.name)||1):field==='reps'?1:.5;
-  let plates='';if(field==='kg'){const bar=barFor(e.name);const kg=parseFloat(val);if(bar!=null&&kg){const r=plateList(kg,bar);plates=r?(r.plates.length?`<span>Each side:</span>`+r.plates.map(p=>`<span class="plate" style="background:${PLATE_COL[p]||'#64748b'};height:${14+Math.min(p,25)*.5}px">${p}</span>`).join('')+(r.rem?`<span style="color:var(--warn)">+${r.rem} not possible</span>`:''):`<span>Just the bar (${bar} kg)</span>`):`<span style="color:var(--warn)">Less than the bar (${bar} kg)</span>`;}else if(meta(e.name).equip==='db')plates='<span>Per dumbbell</span>';}
-  const label=field==='kg'?'Weight (kg)':field==='reps'?'Reps':'RPE – how hard (10 = nothing left)';
-  const go=field==='kg'?'Next →':field==='reps'?'✓ Done set':'Done';
+function renderKp(){const {ei,si,field,val}=KP;const e=DB.active.exercises[ei];const kgF=isKgF(field);const step=kgF?(stepFor(e.name)||1):1;
+  let plates='';if(kgF){const bar=barFor(e.name);const kg=parseFloat(val);if(bar!=null&&kg){const r=plateList(kg,bar);plates=r?(r.plates.length?`<span>Each side:</span>`+r.plates.map(p=>`<span class="plate" style="background:${PLATE_COL[p]||'#64748b'};height:${14+Math.min(p,25)*.5}px">${p}</span>`).join('')+(r.rem?`<span style="color:var(--warn)">+${r.rem} not possible</span>`:''):`<span>Just the bar (${bar} kg)</span>`):`<span style="color:var(--warn)">Less than the bar (${bar} kg)</span>`;}else if(meta(e.name).equip==='db')plates='<span>Per dumbbell</span>';}
+  const dm=/^d(\d+)/.exec(field);
+  const label=field==='partials'?'Partial reps':dm?`Drop ${+dm[1]+1} · ${kgF?'Weight (kg)':'Reps'}`:kgF?'Weight (kg)':'Reps';
+  const go=field==='kg'||(dm&&kgF)?'Next →':field==='reps'?'✓ Done set':'Done';
   $('#kp').innerHTML=`<div class="row" style="margin-bottom:2px"><div class="grow mut sm ell"><b style="color:var(--txt)">${esc(e.name)}</b> · ${({W:'Warm-up',D:'Drop set',F:'Failure set'})[e.sets[si].kind]||'Set '+(mainIndex(e,si)+1)} · ${label}</div><button class="btn ghost sm" onclick="closeKp()">Close</button></div>
   <div class="kpdisp" id="kpd">${esc(val)||'<span class="mut">0</span>'}</div><div class="plates">${plates}</div>
-  ${field==='rpe'?`<div class="rpe" style="grid-template-columns:repeat(8,1fr);margin-bottom:8px">${[6,7,7.5,8,8.5,9,9.5,10].map(n=>`<button class="${+val===n?'on':''}" onclick="kpSet('${n}',true)">${n}</button>`).join('')}</div>`:''}
-  <div class="kpgrid">${['1','2','3','−'].map(kpBtn(step)).join('')}${['4','5','6','+'].map(kpBtn(step)).join('')}${['7','8','9','⌫'].map(kpBtn(step)).join('')}${kpBtn(step)(field==='reps'?'':'.')}${kpBtn(step)('0')}<button class="key go" style="grid-column:span 2" onclick="kpNext()">${go}</button></div>`;}
+  <div class="kpgrid">${['1','2','3','−'].map(kpBtn(step)).join('')}${['4','5','6','+'].map(kpBtn(step)).join('')}${['7','8','9','⌫'].map(kpBtn(step)).join('')}${kpBtn(step)(kgF?'.':'')}${kpBtn(step)('0')}<button class="key go" style="grid-column:span 2" onclick="kpNext()">${go}</button></div>`;}
 const kpBtn=step=>k=>k===''?'<span></span>':k==='−'||k==='+'?`<button class="key fn" onclick="kpStep(${k==='+'?step:-step})">${k}${step}</button>`:`<button class="key ${k==='⌫'?'fn':''}" onclick="kpKey('${k}')">${k}</button>`;
 function kpKey(k){if(!KP)return;let v=KP.val;if(k==='⌫')v=KP.fresh?'':v.slice(0,-1);else if(k==='.'){if(KP.fresh)v='0.';else if(!v.includes('.'))v=(v||'0')+'.';}else{if(KP.fresh)v=k;else if(v.length<6)v=v==='0'?k:v+k;}KP.fresh=false;kpSet(v);}
 function kpStep(d){if(!KP)return;const v=Math.max(0,(parseFloat(KP.val)||0)+d);KP.fresh=true;kpSet(fmtKg(v));}
-function kpSet(v,close){const {ei,si,field}=KP;KP.val=v;const x=DB.active.exercises[ei].sets[si];x[field]=v===''?'':v.replace(/\.$/,'');save();
+function kpSet(v,close){const {ei,si,field}=KP;KP.val=v;const x=DB.active.exercises[ei].sets[si];fset(x,field,v===''?'':v.replace(/\.$/,''));save();
   const c=$(`#c-${ei}-${si}-${field}`);if(c){c.textContent=v===''?'–':v;c.classList.toggle('ghost',v==='');}
   if(close)return closeKp();renderKp();}
-function kpNext(){if(!KP)return;const {ei,si,field}=KP;const x=DB.active.exercises[ei].sets[si];if(field==='kg'){if(x.kg===''&&KP.val!=='')kpSet(KP.val);openKp(ei,si,'reps');}else if(field==='reps'){if(x.reps===''&&KP.val!=='')x.reps=KP.val;closeKp();if(!x.done)tick(ei,si);else renderWorkout();}else closeKp();}
+function kpNext(){if(!KP)return;const {ei,si,field}=KP;const x=DB.active.exercises[ei].sets[si];const cur=fget(x,field);if((cur===''||cur==null)&&KP.val!=='')fset(x,field,KP.val.replace(/\.$/,''));save();
+  const dm=/^d(\d+)kg$/.exec(field);
+  if(field==='kg')openKp(ei,si,'reps');
+  else if(dm)openKp(ei,si,'d'+dm[1]+'reps');
+  else if(field==='reps'){closeKp();if(!x.done)tick(ei,si);else renderWorkout();}
+  else{closeKp();renderWorkout();}}
 
 /* ---------- run ---------- */
 function hrTarget(rt){const m=+DB.settings.maxHR,R=RUN_TYPES[rt];if(!m||!R.hr)return '';return `<div class="chip" style="margin-top:8px">❤️ Target ${Math.round(m*R.hr[0]/100)}–${Math.round(m*R.hr[1]/100)} bpm</div>`;}
@@ -748,7 +786,7 @@ function finishPrompt(){const s=DB.active;closeKp();
   <label>Notes</label><textarea rows="3" oninput="DB.active.notes=this.value;save()" placeholder="How it felt, niggles, PBs…">${esc(s.notes)}</textarea>
   <button class="btn p block lg" style="margin-top:14px;background:${s.color};color:${onColor(s.color)}" onclick="finishSave()">Save workout</button>`);}
 function finishSave(){const s=DB.active;s.duration=Math.round((Date.now()-s.start)/1000);delete s.restEnd;delete s.restDur;
-  if(s.type==='strength'){s.exercises.forEach(e=>e.sets.forEach(x=>{if(!x.done&&x.kg!==''&&x.reps!=='')x.done=true;}));s.exercises=s.exercises.map(e=>({...e,sets:e.sets.filter(x=>x.done)})).filter(e=>e.sets.length);normalizeGroups(s.exercises);}
+  if(s.type==='strength'){s.exercises.forEach(e=>e.sets.forEach(x=>{if(!x.done&&x.kg!==''&&x.reps!=='')x.done=true;if(x.drops){x.drops=x.drops.filter(d=>+d.reps>0);if(!x.drops.length)delete x.drops;}if(x.partials!=null&&!(+x.partials>0))delete x.partials;delete x.startAt;}));s.exercises=s.exercises.map(e=>({...e,sets:e.sets.filter(x=>x.done)})).filter(e=>e.sets.length);normalizeGroups(s.exercises);}
   if(s.run)computeRun(s.run);
   const i=DB.sessions.findIndex(x=>x.id===s.id);if(i>=0)DB.sessions[i]=s;else DB.sessions.push(s);
   s.pbs=findPBs(s);
@@ -795,7 +833,7 @@ function renderSessionView(isSummary){
     if(cmp.length)h+=`<div class="card row">${cmp.map(([n,v,u])=>`<div class="grow"><div class="mut xs" style="font-weight:700">VS LAST ${esc(p.name.toUpperCase())}</div><div style="font-size:18px;font-weight:800;color:${+v>=0?'var(--ok)':'var(--bad)'}">${+v>=0?'▲':'▼'} ${n} ${+v>=0?'+':''}${v}${u==='%'?'%':' '+(+v>=0?u:u.replace('faster','slower'))}</div></div>`).join('')}</div>`;}
   if(s.pbs&&s.pbs.length)h+=`<div class="sec">Personal bests</div><div class="card">${s.pbs.map(p=>`<div class="pb"><span class="tr">🏆</span><div class="grow"><b>${esc(p.name)}</b><div class="mut sm">${p.what} · was ${p.prev}</div></div><b class="num" style="color:var(--warn)">${p.val}</b></div>`).join('')}</div>`;
   if(s.exercises&&s.exercises.length)h+=`<div class="sec">Exercises</div><div class="card">${s.exercises.map(e=>{const w=working(e),wu=e.sets.filter(x=>x.kind==='W'),ps=prSets(e);const best=ps.reduce((a,x)=>e1rm(x.kg,x.reps)>e1rm(a.kg,a.reps)?x:a,ps[0]||{});
-    return `<div class="li" onclick="openEx(${q(e.name)})"><div class="grow"><b>${esc(e.name)}</b>${e.group?' <span class="chip">SS</span>':''}<div class="mut sm num">${w.map(x=>`${x.kind==='D'?'↘':x.kind==='F'?'💥':''}${fmtKg(x.kg)||'BW'}×${x.reps}${x.rpe?'@'+x.rpe:''}${x.pr?'🏆':''}`).join('  ')}${wu.length?` · ${wu.length} warm-up`:''}</div></div>${best.kg?`<div class="right"><div class="num" style="font-weight:700">${fmtKg(best.kg)}×${best.reps}</div><div class="mut xs">best set</div></div>`:''}</div>`;}).join('')}</div>`;
+    return `<div class="li" onclick="openEx(${q(e.name)})"><div class="grow"><b>${esc(e.name)}</b>${e.group?' <span class="chip">SS</span>':''}${e.rpe?` <span class="chip">RPE ${e.rpe}</span>`:''}<div class="mut sm num">${w.map(x=>`${setTxt(x)}${x.rpe?'@'+x.rpe:''}${x.pr?'🏆':''}`).join('  ')}${wu.length?` · ${wu.length} warm-up`:''}${(()=>{const r=e.sets.filter(x=>x.rest).map(x=>x.rest);return r.length?` · avg rest ${fmtTime(r.reduce((a,b)=>a+b,0)/r.length)}`:'';})()}</div></div>${best.kg?`<div class="right"><div class="num" style="font-weight:700">${fmtKg(best.kg)}×${best.reps}</div><div class="mut xs">best set</div></div>`:''}</div>`;}).join('')}</div>`;
   if(s.run){const r=s.run;h+=`<div class="sec">${RUN_TYPES[r.type].name}${r.avgHR?`<span class="r">${zoneChip(r.avgHR)}</span>`:''}</div><div class="card"><div class="stats s4"><div class="stat"><div class="v">${r.distKm||'–'}</div><div class="l">km</div></div><div class="stat"><div class="v">${fmtTime(r.sec)}</div><div class="l">time</div></div><div class="stat"><div class="v">${r.avgHR||'–'}</div><div class="l">avg HR</div></div><div class="stat"><div class="v">${r.maxHR||'–'}</div><div class="l">max HR</div></div></div>
     ${(r.reps||[]).filter(x=>x.time).map((x,i)=>`<div class="li"><span class="mut" style="width:28px">#${i+1}</span><span class="grow num">${x.dist||'–'} m in ${x.time}</span><b class="num">${fmtPace(x.pace)}</b><span class="mut sm" style="width:58px;text-align:right">${x.hr?x.hr+' bpm':''}</span></div>`).join('')}
     ${(r.splits||[]).length?`<div class="mut xs" style="font-weight:700;margin-top:12px">KM SPLITS</div>${r.splits.map(x=>{const mx=Math.max(...r.splits.map(y=>y.sec));return `<div class="li"><span class="mut" style="width:40px">${x.km} km</span><span class="grow"><span style="display:block;height:8px;border-radius:4px;background:${s.color};width:${mx?x.sec/mx*100:0}%"></span></span><b class="num" style="width:56px;text-align:right">${fmtTime(x.sec)}</b><span class="mut sm" style="width:50px;text-align:right">${x.hr||''}</span></div>`;}).join('')}`:''}</div>`;}
@@ -807,7 +845,7 @@ function renderSessionView(isSummary){
   h+=isSummary?`<button class="btn block lg" style="margin-top:8px" onclick="go('home')">Done</button>`:`<div class="row" style="margin-top:8px"><button class="btn grow" onclick="editSession(${q(s.id)})">Edit</button><button class="btn grow danger" onclick="deleteSession(${q(s.id)})">Delete</button></div>`;
   $('#app').innerHTML=h;
 }
-function saveAsTemplate(id){const s=DB.sessions.find(x=>x.id===id);const t={id:uid(),name:s.name==='Workout'?'My workout':s.name,type:'strength',day:'',color:PALETTE[DB.templates.length%PALETTE.length],exercises:s.exercises.map(e=>({name:e.name,sets:Math.max(1,e.sets.filter(isMain).length),reps:e.target||'8-12',rest:e.rest||90,group:e.group||null}))};
+function saveAsTemplate(id){const s=DB.sessions.find(x=>x.id===id);const t={id:uid(),name:s.name==='Workout'?'My workout':s.name,type:'strength',day:'',color:PALETTE[DB.templates.length%PALETTE.length],exercises:s.exercises.map(e=>({name:e.name,sets:Math.max(1,e.sets.filter(isMain).length),reps:'',rest:e.rest||90,group:e.group||null}))};
   t.short=t.name.slice(0,2);DB.templates.push(t);s.templateId=t.id;s.color=t.color;save();toast('Saved to Workouts');go('editTemplate',t.id);}
 function deleteSession(id){const i=DB.sessions.findIndex(x=>x.id===id);const [s]=DB.sessions.splice(i,1);save();go('history');toast('Workout deleted',()=>{DB.sessions.splice(i,0,s);save();render();});}
 function editSession(id){if(DB.active&&!confirm('Replace the workout in progress?'))return;const s=JSON.parse(JSON.stringify(DB.sessions.find(x=>x.id===id)));s.start=Date.now()-(s.duration||0)*1000;ui={open:new Set(),sug:{}};DB.active=s;save();go('workout');toast('Editing – tap Finish to save changes');}
@@ -900,7 +938,7 @@ function renderExercise(){const name=param;const hi=exHistory(name);const m=meta
   const rp={};hi.forEach(x=>x.w.forEach(y=>{const r=+y.reps,k=+y.kg||0;if(r>=1&&r<=20&&(!rp[r]||k>rp[r].kg))rp[r]={kg:k,date:x.date};}));
   h+=`<div class="sec">Rep PRs<span class="r mut xs">heaviest at each rep count</span></div><div class="card">${Object.keys(rp).sort((a,b)=>a-b).map(r=>`<div class="li"><span class="mut" style="width:62px">${r} rep${r>1?'s':''}</span><b class="grow num">${fmtKg(rp[r].kg)} kg</b><span class="mut sm">${fmtDate(rp[r].date,{day:'numeric',month:'short',year:'2-digit'})}</span></div>`).join('')}</div>`;
   h+=`<div class="sec">Estimated maxes<span class="r mut xs">from best e1RM</span></div><div class="card"><div class="stats">${[1,3,5,8,10,12].map(r=>`<div class="stat"><div class="v">${fmtKg(roundTo(best.e1/(r===1?1:1+r/30),step))}</div><div class="l">${r}RM kg</div></div>`).join('')}</div></div>`;
-  h+=`<div class="sec">History</div><div class="card">${hi.slice().reverse().slice(0,15).map(x=>`<div class="li" onclick="go('session',${q(x.s.id)})"><div class="grow"><b>${fmtDate(x.date)}</b><div class="mut sm num">${x.all.map(y=>`${y.kind==='D'?'↘':y.kind==='F'?'💥':''}${fmtKg(y.kg)||'BW'}×${y.reps}`).join('  ')}</div></div><div class="right"><div class="num" style="font-weight:700">${x.e1.toFixed(1)}</div><div class="mut xs">e1RM</div></div></div>`).join('')}</div>`;
+  h+=`<div class="sec">History</div><div class="card">${hi.slice().reverse().slice(0,15).map(x=>`<div class="li" onclick="go('session',${q(x.s.id)})"><div class="grow"><b>${fmtDate(x.date)}</b><div class="mut sm num">${x.all.map(setTxt).join('  ')}</div></div><div class="right"><div class="num" style="font-weight:700">${x.e1.toFixed(1)}</div><div class="mut xs">e1RM</div></div></div>`).join('')}</div>`;
   $('#app').innerHTML=h;drawChart($('#chart'),{series:[{name:'Est. 1RM',color:'#ff6b2c',pts:hi.map(x=>[x.date,x.e1])},{name:'Top set kg',color:'#3d9bff',pts:hi.map(x=>[x.date,x.top]),thin:true}],fmt:v=>v.toFixed(0)});}
 
 /* ======================= CHART ======================= */
@@ -956,7 +994,7 @@ function renderEditTemplate(){const t=tpl();if(!t){view='templates';return rende
   <div><label>Day</label><select onchange="tpl().day=this.value===''?'':+this.value;save()"><option value="">Not on a day</option>${[1,2,3,4,5,6,0].map(i=>`<option value="${i}" ${t.day===i?'selected':''}>${DAYS[i]}</option>`).join('')}</select></div></div>
   <label>Colour</label><div class="swatches">${PALETTE.map(c=>`<button class="${c===t.color?'on':''}" style="background:${c}" onclick="tpl().color='${c}';save();renderEditTemplate()"></button>`).join('')}</div></div>`;
   if(t.type==='strength'){h+=`<div class="sec">Exercises</div>`+t.exercises.map((e,i)=>`<div class="tpl-ex"><div class="row"><input class="grow" list="exList" value="${esc(e.name)}" onchange="tpl().exercises[${i}].name=this.value;save()"><button class="icon-btn" onclick="mvT(${i},-1)">↑</button><button class="icon-btn" onclick="mvT(${i},1)">↓</button><button class="icon-btn" style="color:var(--bad)" onclick="rmT(${i})">✕</button></div>
-    <div class="field-row"><div><label>Sets</label><input inputmode="numeric" value="${e.sets}" onchange="tpl().exercises[${i}].sets=+this.value||1;save()"></div><div><label>Reps</label><input value="${esc(e.reps)}" onchange="tpl().exercises[${i}].reps=this.value;save()"></div><div><label>Rest (s)</label><input inputmode="numeric" value="${e.rest}" onchange="tpl().exercises[${i}].rest=+this.value||90;save()"></div></div></div>
+    <div class="field-row"><div><label>Sets</label><input inputmode="numeric" value="${e.sets}" onchange="tpl().exercises[${i}].sets=+this.value||1;save()"></div><div><label>Rest (s, timer)</label><input inputmode="numeric" value="${e.rest}" onchange="tpl().exercises[${i}].rest=+this.value||90;save()"></div></div></div>
     ${i<t.exercises.length-1?`<div class="link" style="--c:${t.color}"><button class="${e.group&&e.group===t.exercises[i+1].group?'on':''}" onclick="linkToggle(tpl().exercises,${i});save();renderEditTemplate()">${e.group&&e.group===t.exercises[i+1].group?'🔗 Superset':'+ superset'}</button></div>`:'<div style="height:10px"></div>'}`).join('')+exDatalist()+
     `<button class="btn block" onclick="tpl().exercises.push(ex('New exercise'));save();renderEditTemplate()">+ Add exercise</button>`;}
   else if(t.type==='hyrox')h+=hyroxEditor(t);
@@ -1001,7 +1039,9 @@ function renderSettings(){setHeader('Settings');const S=DB.settings,ev=eventInfo
 function renderSettingsSec(){const k=param,S=DB.settings;const sec=SET_SECTIONS.find(x=>x[0]===k);setHeader(sec?sec[2]:'Settings',{backBtn:true});let h='';
   if(k==='programme')h=`<div class="card"><label style="margin-top:0">Week 1 starts on (Monday)</label><input type="date" value="${S.startDate}" onchange="DB.settings.startDate=ymd(mondayOf(this.value));save();renderSettingsSec()">
    <div class="mut xs" style="margin-top:6px">Week ${weekNo()} · this week's run: ${runOfWeek()} (${RUN_TYPES[runOfWeek()].name})${isDeload()?' · deload week':''}</div>
-   <div class="field-row"><div><label>Deload every (wks)</label><input inputmode="numeric" value="${S.deloadEvery}" onchange="DB.settings.deloadEvery=+this.value||5;save()"></div><div><label>Weekly goal</label><input inputmode="numeric" value="${S.weeklyGoal}" onchange="DB.settings.weeklyGoal=+this.value||4;save()"></div><div><label>Default rest (s)</label><input inputmode="numeric" value="${S.defaultRest}" onchange="DB.settings.defaultRest=+this.value||90;save()"></div></div></div>`;
+   <div class="field-row"><div><label>Deload every (wks)</label><input inputmode="numeric" value="${S.deloadEvery}" onchange="DB.settings.deloadEvery=+this.value||5;save()"></div><div><label>Weekly goal</label><input inputmode="numeric" value="${S.weeklyGoal}" onchange="DB.settings.weeklyGoal=+this.value||4;save()"></div><div><label>Timer rest (s)</label><input inputmode="numeric" value="${S.defaultRest}" onchange="DB.settings.defaultRest=+this.value||90;save()"></div></div>
+   <label>Rest on weight days</label><div class="seg" style="margin:0">${[['off','Off'],['auto','Auto'],['timer','Timer']].map(([x,n])=>`<button class="${(S.restMode||'off')===x?'on':''}" onclick="DB.settings.restMode='${x}';save();renderSettingsSec()">${n}</button>`).join('')}</div>
+   <div class="mut xs" style="margin-top:6px">Off = nothing. Auto = no countdown, rest worked out between sets. Timer = countdown after each set. Hyrox always uses its own timer.</div></div>`;
   if(k==='event'){const e=S.event||{},ev=eventInfo();h=`<div class="card"><label style="margin-top:0">Event name</label><input value="${esc(e.name)}" placeholder="e.g. Hyrox London" oninput="DB.settings.event.name=this.value;save()">
    <label>Date</label><input type="date" value="${esc(e.date)}" onchange="DB.settings.event.date=this.value;save();renderSettingsSec()">
    ${ev?`<div class="note" style="margin:12px 0 0;background:rgba(255,107,44,.12);color:var(--acc)">🏁 ${ev.days} days to go – shows on Today${ev.days<=7?' · race week!':''}</div>`:'<div class="mut xs" style="margin-top:8px">Leave blank until you book one. The countdown shows on Today once a date is set.</div>'}</div>
@@ -1024,7 +1064,7 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{appl
 function download(name,text,type){const b=new Blob([text],{type});const f=new File([b],name,{type});if(navigator.canShare&&navigator.canShare({files:[f]})){navigator.share({files:[f],title:name}).catch(()=>{});return;}const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;a.click();}
 function exportJSON(){download(`trainlog-backup-${ymd(new Date())}.json`,JSON.stringify(DB),'application/json');}
 function exportCSV(){const rows=[['date','workout','type','exercise/item','set','set_type','kg','reps','rpe','e1rm','distance','time','pace_per_km','avg_hr','session_rpe','notes']];const qq=v=>`"${String(v??'').replace(/"/g,'""')}"`;const KN={N:'working',W:'warm-up',D:'drop',F:'failure'};
-  DB.sessions.forEach(s=>{const d=ymd(s.date);(s.exercises||[]).forEach(e=>e.sets.forEach((x,i)=>rows.push([d,s.name,s.type,e.name,i+1,KN[x.kind]||'working',x.kg,x.reps,x.rpe,e1rm(x.kg,x.reps).toFixed(1),'','','','',s.rpe,''])));
+  DB.sessions.forEach(s=>{const d=ymd(s.date);(s.exercises||[]).forEach(e=>e.sets.forEach((x,i)=>rows.push([d,s.name,s.type,e.name,i+1,KN[x.kind]||'working',x.kg,x.reps,e.rpe||x.rpe,e1rm(x.kg,x.reps).toFixed(1),'',x.rest?fmtTime(x.rest):'','','',s.rpe,[...(x.drops||[]).map(z=>'drop '+z.kg+'x'+z.reps),x.partials?x.partials+' partials':''].filter(Boolean).join('; ')])));
     if(s.run){rows.push([d,s.name,'run','Total','','','','','','',s.run.distKm+' km',s.run.time,s.run.pace?fmtTime(s.run.pace):'',s.run.avgHR,s.rpe,s.notes]);(s.run.reps||[]).forEach((x,i)=>x.time&&rows.push([d,s.name,'run','Rep',i+1,'','','','','',x.dist+' m',x.time,x.pace?fmtTime(x.pace):'',x.hr,'','']));}
     if(s.hyrox)s.hyrox.blocks.forEach(b=>b.results.forEach((r,ri)=>{b.stations.forEach((x,i)=>rows.push([d,s.name,'hyrox',b.name+' · '+stLabel(x),ri+1,'',station(x.sid).kg?s.hyrox.loads[x.sid]||'':'','','','','',fmtTime(r.splits[i]),'','','','']));rows.push([d,s.name,'hyrox',b.name+' · round total',ri+1,'','','','','','',fmtTime(r.total),'','',s.rpe,'']);}));
     (s.cardio||[]).forEach(c=>rows.push([d,s.name,'cardio',c.machine,'','','','','','',c.dist?c.dist+' m':'',c.min,'',c.hr,s.rpe,s.notes]));});

@@ -269,6 +269,27 @@ body.race .hdr h1:before{content:"🏁 ";}
 .sug button{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;text-align:left;background:var(--s2);border:0;border-radius:11px;padding:11px 12px;margin-bottom:5px;font-weight:600;font-size:15px}
 .cchips{display:flex;flex-wrap:wrap;gap:6px}
 .cchips .chip{border:0;padding:8px 11px;font-size:13px;color:var(--txt)}
+.exi{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;flex:none;border-radius:30%;background:color-mix(in srgb,var(--mc) 18%,transparent);color:var(--mc);line-height:1;gap:1px;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--mc) 28%,transparent)}
+.exi svg{fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.exi b{font-weight:800;letter-spacing:.02em;font-size:.82em}
+.exh .exi{margin-right:2px}
+.exiw{position:relative;display:inline-flex;flex:none}
+.exiw .ck.sm{position:absolute;right:-5px;bottom:-5px;width:18px;height:18px;font-size:10px;font-style:normal;box-shadow:0 0 0 2px var(--s1)}
+.cpill{display:inline-flex;align-items:center;gap:5px;margin-top:8px;padding:5px 10px;border-radius:999px;background:color-mix(in srgb,#34d399 16%,transparent);color:var(--txt);font-size:12px;font-weight:600}
+.cpill b{color:#10b981}
+#chart{cursor:crosshair}
+@keyframes inFwd{from{opacity:0;transform:translateX(26px)}to{opacity:1;transform:none}}
+@keyframes inBack{from{opacity:0;transform:translateX(-26px)}to{opacity:1;transform:none}}
+@keyframes inFade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+#app.in-fwd{animation:inFwd .26s cubic-bezier(.2,.8,.2,1)}
+#app.in-back{animation:inBack .26s cubic-bezier(.2,.8,.2,1)}
+#app.in-fade{animation:inFade .22s ease-out}
+#app.in-fwd .card,#app.in-fade .card{animation:cardUp .38s cubic-bezier(.2,.8,.2,1) backwards}
+#app .card:nth-child(2){animation-delay:.03s}#app .card:nth-child(3){animation-delay:.06s}#app .card:nth-child(4){animation-delay:.09s}#app .card:nth-child(5){animation-delay:.12s}#app .card:nth-child(n+6){animation-delay:.15s}
+@keyframes cardUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.modal .sheet{animation:sheetUp .28s cubic-bezier(.2,.8,.2,1)}
+@keyframes sheetUp{from{transform:translateY(100%)}to{transform:none}}
+@media (prefers-reduced-motion: reduce){#app,#app .card,.modal .sheet,.ringfg,.flame.on{animation:none!important}}
 </style>
 </head>
 <body>
@@ -287,7 +308,7 @@ body.race .hdr h1:before{content:"🏁 ";}
 </nav>
 <script>
 /* ======================= CORE / UTILS ======================= */
-const APP_VERSION='2.4';
+const APP_VERSION='2.5';
 const KEY='trainlog_v1'; // same storage key since v1 so data carries over
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -382,7 +403,7 @@ function migrate(d){
   if(!d.v22){d.templates.forEach(t=>{if(t.type==='strength')t.exercises.forEach(e=>{e.sets=2;});});d.settings.restMode=d.settings.restMode||'off';d.v22=true;}
   // v2.4: swim + cycle workouts
   if(!d.v24){[{id:'swim',name:'Swim',type:'cardio',cardioType:'swim',day:'',color:'#22d3ee',short:'Sw',exercises:[]},{id:'cycle',name:'Cycle',type:'cardio',cardioType:'cycle',day:'',color:'#a3e635',short:'Cy',exercises:[]}].forEach(t=>{if(!d.templates.some(x=>x.id===t.id))d.templates.push(t);});d.v24=true;}
-  d.version=2.4;return d;
+  d.version=2.5;return d;
 }
 function save(){try{localStorage.setItem(KEY,JSON.stringify(DB));}catch(e){toast('⚠️ Could not save – storage full?');}}
 
@@ -416,20 +437,8 @@ const exVol=e=>working(e).reduce((a,x)=>a+(+x.kg||0)*(+x.reps||0)+(x.drops||[]).
 function sortedSessions(){return [...DB.sessions].sort((a,b)=>b.date.localeCompare(a.date));}
 function lastExercise(name){const n=name.toLowerCase();for(const s of sortedSessions()){const e=(s.exercises||[]).find(x=>x.name.toLowerCase()===n);if(e&&e.sets.some(x=>x.done))return e;}return null;}
 function exHistory(name){const n=name.toLowerCase();return [...DB.sessions].sort((a,b)=>a.date.localeCompare(b.date)).map(s=>{const e=(s.exercises||[]).find(x=>x.name.toLowerCase()===n);if(!e)return null;const w=prSets(e);if(!w.length)return null;const top=w.reduce((a,x)=>+x.kg>+a.kg?x:a,w[0]);return {s,e,w,all:working(e),date:s.date,e1:Math.max(...w.map(x=>e1rm(x.kg,x.reps))),top:+top.kg||0,topR:+top.reps,vol:exVol(e)};}).filter(Boolean);}
-function rangeOf(t){const m=String(t||'').match(/(\d+)\s*[-–]\s*(\d+)/);if(m)return [+m[1],+m[2]];const n=parseInt(t);return n?[n,n]:[8,12];}
 
 /* progressive overload suggestion */
-function suggestFor(name,target,deload){
-  const last=lastExercise(name);if(!last)return null;
-  const ws=prSets(last);if(!ws.length)return null;
-  const [lo,hi]=rangeOf(target);const step=stepFor(name);
-  if(deload)return {label:'Deload',why:'Same weight, fewer sets this week',sets:ws.map(x=>({kg:x.kg,reps:x.reps}))};
-  const top=Math.max(...ws.map(x=>+x.kg||0));const topSets=ws.filter(x=>(+x.kg||0)===top);
-  const allHit=topSets.every(x=>+x.reps>=hi);
-  if(allHit&&step>0){const nk=roundTo(top+step,step);return {label:'↑ '+fmtKg(nk)+' kg',why:`Hit ${hi} reps on every set last time`,sets:ws.map(()=>({kg:nk,reps:lo}))};}
-  if(allHit)return {label:'+1 rep',why:'Top of range hit – add reps or load',sets:ws.map(x=>({kg:x.kg,reps:(+x.reps||0)+1}))};
-  return {label:'+1 rep',why:`Same weight, aim for one more rep (up to ${hi})`,sets:ws.map(x=>({kg:x.kg,reps:Math.min(hi,(+x.reps||0)+1)}))};
-}
 
 /* metrics */
 function sessVolume(s){return (s.exercises||[]).reduce((a,e)=>a+exVol(e),0);}
@@ -467,6 +476,7 @@ function findPBs(s){
   if(s.hyrox){const t=hyroxTotal(s),pv=others.filter(o=>o.hyrox&&o.templateId===s.templateId).map(hyroxTotal).filter(Boolean);if(t&&pv.length&&t<Math.min(...pv))pbs.push({name:s.name,what:'Fastest total',val:fmtTime(t),prev:fmtTime(Math.min(...pv))});
     const best=stationBests(others),seen={};s.hyrox.blocks.forEach(b=>b.results.forEach(r=>b.stations.forEach((x,i)=>{const v=r.splits[i];if(v==null)return;const k=x.sid+':'+x.amount;if(best[k]!=null&&v<best[k]&&(seen[k]==null||v<seen[k]))seen[k]=v;})));
     Object.entries(seen).forEach(([k,v])=>{const [sid,a]=k.split(':');pbs.push({name:stLabel({sid,amount:+a}),what:'Fastest split',val:fmtTime(v),prev:fmtTime(best[k])});});}
+  pbs.push(...cardioPBs(s,others));
   return pbs;
 }
 
@@ -503,8 +513,8 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden){if(DB.act
 /* ======================= ROUTER ======================= */
 let view='home',param=null,stack=[];
 const TABS=['home','history','progress','templates','settings'];
-function go(v,p=null,push=true){if(push&&!TABS.includes(v))stack.push({v:view,p:param});if(TABS.includes(v))stack=[];view=v;param=p;closeSheet();closeKp();render();window.scrollTo(0,0);}
-function back(){const b=stack.pop()||{v:'home',p:null};view=b.v;param=b.p;render();window.scrollTo(0,0);}
+function go(v,p=null,push=true){navDir=TABS.includes(v)?'tab':'fwd';if(push&&!TABS.includes(v))stack.push({v:view,p:param});if(TABS.includes(v))stack=[];view=v;param=p;closeSheet();closeKp();render();window.scrollTo(0,0);animIn();if(v==='summary'||v==='session')countUp($('#app'));}
+function back(){const b=stack.pop()||{v:'home',p:null};view=b.v;param=b.p;render();window.scrollTo(0,0);navDir='back';animIn();}
 function setHeader(title,{sub='',right='',backBtn=false,extra=''}={}){
   $('#hdr').innerHTML=`${backBtn?`<button class="back" onclick="back()">‹ Back</button>`:''}<div class="t"><h1>${esc(title)}</h1>${sub?`<div class="sub">${sub}</div>`:''}${extra}</div>${right}`;}
 function render(){
@@ -603,7 +613,7 @@ function togglePlate(p){const a=DB.settings.plates;const i=a.indexOf(p);if(i>=0)
 function zoneList(){const m=+DB.settings.maxHR;return ZONES.map(z=>`<div class="li"><span class="zone" style="background:${z[3]};width:12px;height:12px"></span><span class="grow">${z[2]}</span><span class="mut sm">${z[0]}–${Math.min(100,z[1])}%</span><b class="num" style="width:84px;text-align:right">${Math.round(m*z[0]/100)}–${Math.round(m*Math.min(100,z[1])/100)}</b></div>`).join('');}
 
 /* ======================= START SESSION ======================= */
-let ui={open:new Set(),sug:{}};
+let ui={open:new Set()};
 function blankSet(kind='N'){return {kind,kg:'',reps:'',rpe:'',done:false};}
 function startSession(tid){
   if(DB.active){if(!confirm('A workout is already in progress. Discard it and start a new one?'))return;Timer.stop();hxClock=null;}
@@ -616,12 +626,12 @@ function startSession(tid){
     s.hyrox={loads:{},blocks:(t.blocks||[]).map(b=>({name:b.name,rounds:b.rounds,rest:b.rest,stations:b.stations.map(x=>({...x})),results:Array.from({length:b.rounds},()=>({splits:b.stations.map(()=>null),total:null}))}))};
     s.hyrox.blocks.forEach(b=>b.stations.forEach(x=>{if(station(x.sid).kg&&s.hyrox.loads[x.sid]==null)s.hyrox.loads[x.sid]=L[x.sid]??'';}));}
   else s.cardio=[newCardio(t.cardioType||'bike')];
-  ui={open:new Set(),sug:{}};DB.active=s;save();go('workout');
+  ui={open:new Set()};DB.active=s;save();go('workout');
 }
 function startEmpty(){
   if(DB.active){if(!confirm('A workout is already in progress. Discard it and start a new one?'))return;Timer.stop();}
   DB.active={id:uid(),templateId:null,name:'Workout',type:'strength',color:'#64748b',date:new Date().toISOString(),start:Date.now(),notes:'',rpe:null,deload:false,exercises:[]};
-  ui={open:new Set(),sug:{}};save();go('workout');setTimeout(addExercise,250);
+  ui={open:new Set()};save();go('workout');setTimeout(addExercise,250);
 }
 function lastLoads(){const L={};sortedSessions().forEach(o=>{if(o.hyrox&&o.hyrox.loads)for(const k in o.hyrox.loads)if(L[k]==null&&o.hyrox.loads[k]!=='')L[k]=o.hyrox.loads[k];});return L;}
 function newRun(rt){const R=RUN_TYPES[rt];return {type:rt,distKm:'',time:'',avgHR:'',maxHR:'',reps:R.mode==='intervals'?Array.from({length:R.reps},()=>({dist:'',time:'',hr:''})):[]};}
@@ -669,9 +679,9 @@ const isKgF=f=>/kg$/.test(f);
 function exCard(s,ei){
   const e=s.exercises[ei];if(e.cardio)return cardioCard(ei);const m=meta(e.name);const rm=restMode();
   const work=e.sets.filter(x=>x.kind!=='W');const complete=work.length&&work.every(x=>x.done);
-  if(complete&&!ui.open.has(ei)){const prs=e.sets.filter(x=>x.pr).length;return `<div class="card ex collapsed" onclick="ui.open.add(${ei});renderWorkout()"><div class="ck">✓</div><div class="grow"><div class="exn ell">${esc(e.name)}${prs?' <span class="chip acc">🏆 '+prs+'</span>':''}${e.rpe?` <span class="chip">RPE ${e.rpe}</span>`:''}</div><div class="mut sm ell num">${work.map(setTxt).join(' · ')}</div></div><span class="chev">›</span></div>`;}
+  if(complete&&!ui.open.has(ei)){const prs=e.sets.filter(x=>x.pr).length;return `<div class="card ex collapsed" onclick="ui.open.add(${ei});renderWorkout()"><span class="exiw">${exIcon(e.name,32)}<i class="ck sm">✓</i></span><div class="grow"><div class="exn ell">${esc(e.name)}${prs?' <span class="chip acc">🏆 '+prs+'</span>':''}${e.rpe?` <span class="chip">RPE ${e.rpe}</span>`:''}</div><div class="mut sm ell num">${work.map(setTxt).join(' · ')}</div></div><span class="chev">›</span></div>`;}
   const hist=exHistory(e.name).slice(-8).map(x=>x.e1);
-  return `<div class="card ex" id="ex${ei}"><div class="exh"><div class="grow" onclick="openEx(${q(e.name)})"><div class="exn">${esc(e.name)}</div><div class="mut sm">${m.muscle}${rm==='timer'?' · '+fmtTime(e.rest)+' rest':''}</div></div>${spark(hist,s.color,56,24)}<button class="chip ${e.rpe?'acc':''}" style="border:0;padding:7px 10px" onclick="rpeSheet(${ei})">RPE ${e.rpe||'–'}</button><button class="icon-btn" onclick="exMenu(${ei})">⋯</button></div>
+  return `<div class="card ex" id="ex${ei}"><div class="exh"><span onclick="openEx(${q(e.name)})">${exIcon(e.name)}</span><div class="grow" onclick="openEx(${q(e.name)})"><div class="exn">${esc(e.name)}</div><div class="mut sm">${m.muscle}${rm==='timer'?' · '+fmtTime(e.rest)+' rest':''}</div></div>${spark(hist,s.color,56,24)}<button class="chip ${e.rpe?'acc':''}" style="border:0;padding:7px 10px" onclick="rpeSheet(${ei})">RPE ${e.rpe||'–'}</button><button class="icon-btn" onclick="exMenu(${ei})">⋯</button></div>
   ${m.note?`<div class="note" onclick="editNote(${q(e.name)})">📌 ${esc(m.note)}</div>`:''}
   <div class="sethead"><span>Set</span><span>Prev</span><span>kg</span><span>Reps</span><span></span></div>
   ${e.sets.map((x,si)=>{const g=ghost(ei,si);const kc={W:'w',D:'d',F:'f'}[x.kind]||'';const dn=x.done?'done':'';
@@ -904,12 +914,12 @@ function renderSessionView(isSummary){
     if(cmp.length)h+=`<div class="card row">${cmp.map(([n,v,u])=>`<div class="grow"><div class="mut xs" style="font-weight:700">VS LAST ${esc(p.name.toUpperCase())}</div><div style="font-size:18px;font-weight:800;color:${+v>=0?'var(--ok)':'var(--bad)'}">${+v>=0?'▲':'▼'} ${n} ${+v>=0?'+':''}${v}${u==='%'?'%':' '+(+v>=0?u:u.replace('faster','slower'))}</div></div>`).join('')}</div>`;}
   if(s.pbs&&s.pbs.length)h+=`<div class="sec">Personal bests</div><div class="card">${s.pbs.map(p=>`<div class="pb"><span class="tr">🏆</span><div class="grow"><b>${esc(p.name)}</b><div class="mut sm">${p.what} · was ${p.prev}</div></div><b class="num" style="color:var(--warn)">${p.val}</b></div>`).join('')}</div>`;
   if(s.exercises&&s.exercises.length)h+=`<div class="sec">Exercises</div><div class="card">${s.exercises.map(e=>{if(e.cardio){const T=cT(e.cardio);return `<div class="li" onclick="progTab='cardio';go('progress')"><div class="setico" style="background:var(--s2)">${T.i}</div><div class="grow"><b>${esc(e.name)}</b> <span class="chip acc">Cardio</span><div class="mut sm num">${cSummary(e.cardio)}${e.cardio.hr?' · '+e.cardio.hr+' bpm':''}</div></div></div>`;}const w=working(e),wu=e.sets.filter(x=>x.kind==='W'),ps=prSets(e);const best=ps.reduce((a,x)=>e1rm(x.kg,x.reps)>e1rm(a.kg,a.reps)?x:a,ps[0]||{});
-    return `<div class="li" onclick="openEx(${q(e.name)})"><div class="grow"><b>${esc(e.name)}</b>${e.group?' <span class="chip">SS</span>':''}${e.rpe?` <span class="chip">RPE ${e.rpe}</span>`:''}<div class="mut sm num">${w.map(x=>`${setTxt(x)}${x.rpe?'@'+x.rpe:''}${x.pr?'🏆':''}`).join('  ')}${wu.length?` · ${wu.length} warm-up`:''}${(()=>{const r=e.sets.filter(x=>x.rest).map(x=>x.rest);return r.length?` · avg rest ${fmtTime(r.reduce((a,b)=>a+b,0)/r.length)}`:'';})()}</div></div>${best.kg?`<div class="right"><div class="num" style="font-weight:700">${fmtKg(best.kg)}×${best.reps}</div><div class="mut xs">best set</div></div>`:''}</div>`;}).join('')}</div>`;
+    return `<div class="li" onclick="openEx(${q(e.name)})">${exIcon(e.name,32)}<div class="grow"><b>${esc(e.name)}</b>${e.group?' <span class="chip">SS</span>':''}${e.rpe?` <span class="chip">RPE ${e.rpe}</span>`:''}<div class="mut sm num">${w.map(x=>`${setTxt(x)}${x.rpe?'@'+x.rpe:''}${x.pr?'🏆':''}`).join('  ')}${wu.length?` · ${wu.length} warm-up`:''}${(()=>{const r=e.sets.filter(x=>x.rest).map(x=>x.rest);return r.length?` · avg rest ${fmtTime(r.reduce((a,b)=>a+b,0)/r.length)}`:'';})()}</div></div>${best.kg?`<div class="right"><div class="num" style="font-weight:700">${fmtKg(best.kg)}×${best.reps}</div><div class="mut xs">best set</div></div>`:''}</div>`;}).join('')}</div>`;
   if(s.run){const r=s.run;h+=`<div class="sec">${RUN_TYPES[r.type].name}${r.avgHR?`<span class="r">${zoneChip(r.avgHR)}</span>`:''}</div><div class="card"><div class="stats s4"><div class="stat"><div class="v">${r.distKm||'–'}</div><div class="l">km</div></div><div class="stat"><div class="v">${fmtTime(r.sec)}</div><div class="l">time</div></div><div class="stat"><div class="v">${r.avgHR||'–'}</div><div class="l">avg HR</div></div><div class="stat"><div class="v">${r.maxHR||'–'}</div><div class="l">max HR</div></div></div>
     ${(r.reps||[]).filter(x=>x.time).map((x,i)=>`<div class="li"><span class="mut" style="width:28px">#${i+1}</span><span class="grow num">${x.dist||'–'} m in ${x.time}</span><b class="num">${fmtPace(x.pace)}</b><span class="mut sm" style="width:58px;text-align:right">${x.hr?x.hr+' bpm':''}</span></div>`).join('')}
     ${(r.splits||[]).length?`<div class="mut xs" style="font-weight:700;margin-top:12px">KM SPLITS</div>${r.splits.map(x=>{const mx=Math.max(...r.splits.map(y=>y.sec));return `<div class="li"><span class="mut" style="width:40px">${x.km} km</span><span class="grow"><span style="display:block;height:8px;border-radius:4px;background:${s.color};width:${mx?x.sec/mx*100:0}%"></span></span><b class="num" style="width:56px;text-align:right">${fmtTime(x.sec)}</b><span class="mut sm" style="width:50px;text-align:right">${x.hr||''}</span></div>`;}).join('')}`:''}</div>`;}
   if(s.hyrox)h+=hyroxDetail(s);
-    if(s.cardio)h+=`<div class="sec">Cardio</div><div class="card">${s.cardio.map(c=>{const T=cT(c);return `<div class="li"><span style="font-size:20px">${T.i}</span><div class="grow"><b>${T.n}</b><div class="mut sm num">${cSummary(c)}${c.hr?' · '+c.hr+' bpm':''}</div></div></div>`;}).join('')}</div>`;
+  if(s.cardio)h+=`<div class="sec">Cardio</div><div class="card">${s.cardio.map(c=>{const T=cT(c);return `<div class="li"><span style="font-size:20px">${T.i}</span><div class="grow"><b>${T.n}</b><div class="mut sm num">${cSummary(c)}${c.hr?' · '+c.hr+' bpm':''}</div></div></div>`;}).join('')}</div>`;
   if(s.notes||s.rpe)h+=`<div class="card">${s.rpe?`<div class="mut sm">Session RPE <b style="color:var(--txt)">${s.rpe}/10</b></div>`:''}${s.notes?`<div style="margin-top:6px;white-space:pre-wrap">${esc(s.notes)}</div>`:''}</div>`;
   if(!s.templateId&&s.type==='strength'&&s.exercises.length)h+=`<button class="btn block" style="margin-bottom:8px" onclick="saveAsTemplate(${q(s.id)})">💾 Save as a workout template</button>`;
   h+=`<button class="btn p block lg" style="margin-top:6px;background:${s.color};color:${fg}" onclick="shareSession(${q(s.id)})">Share summary</button>`;
@@ -919,7 +929,7 @@ function renderSessionView(isSummary){
 function saveAsTemplate(id){const s=DB.sessions.find(x=>x.id===id);const t={id:uid(),name:s.name==='Workout'?'My workout':s.name,type:'strength',day:'',color:PALETTE[DB.templates.length%PALETTE.length],exercises:s.exercises.map(e=>e.cardio?{name:e.name,cardio:e.cardio.type,sets:0,reps:'',rest:0,group:null}:({name:e.name,sets:Math.max(1,e.sets.filter(isMain).length),reps:'',rest:e.rest||90,group:e.group||null}))};
   t.short=t.name.slice(0,2);DB.templates.push(t);s.templateId=t.id;s.color=t.color;save();toast('Saved to Workouts');go('editTemplate',t.id);}
 function deleteSession(id){const i=DB.sessions.findIndex(x=>x.id===id);const [s]=DB.sessions.splice(i,1);save();go('history');toast('Workout deleted',()=>{DB.sessions.splice(i,0,s);save();render();});}
-function editSession(id){if(DB.active&&!confirm('Replace the workout in progress?'))return;const s=JSON.parse(JSON.stringify(DB.sessions.find(x=>x.id===id)));s.start=Date.now()-(s.duration||0)*1000;ui={open:new Set(),sug:{}};DB.active=s;save();go('workout');toast('Editing – tap Finish to save changes');}
+function editSession(id){if(DB.active&&!confirm('Replace the workout in progress?'))return;const s=JSON.parse(JSON.stringify(DB.sessions.find(x=>x.id===id)));s.start=Date.now()-(s.duration||0)*1000;ui={open:new Set()};DB.active=s;save();go('workout');toast('Editing – tap Finish to save changes');}
 
 /* ======================= PROGRESS ======================= */
 let progTab='lifts',musRange='week',repOff=0,hxSel=null;
@@ -930,18 +940,18 @@ function renderProgress(){
   const ss=[...DB.sessions].sort((a,b)=>a.date.localeCompare(b.date));let chart=null;
   if(progTab==='lifts'){const names={};ss.forEach(s=>(s.exercises||[]).forEach(e=>{if(prSets(e).length)names[e.name]=s.date;}));const list=Object.keys(names).sort((a,b)=>names[b].localeCompare(names[a]));
     if(!list.length)h+=emptyState('🏋️','No lifts logged yet','Finish a Push or Pull session to see your progress here.');
-    else h+=`<div class="card">${list.map(n=>{const hi=exHistory(n);const best=Math.max(...hi.map(x=>x.e1));const m=meta(n);return `<div class="li" onclick="openEx(${q(n)})"><div class="grow"><b class="ell" style="display:block">${esc(n)}</b><div class="mut sm">${m.muscle} · ${hi.length} session${hi.length>1?'s':''} · last ${fmtDate(names[n],{day:'numeric',month:'short'})}</div></div>${spark(hi.slice(-10).map(x=>x.e1),'#ff6b2c')}<div class="right" style="width:58px"><div class="num" style="font-weight:800">${best.toFixed(0)}</div><div class="mut xs">e1RM kg</div></div></div>`;}).join('')}</div>`;}
+    else h+=`<div class="card">${list.map(n=>{const hi=exHistory(n);const best=Math.max(...hi.map(x=>x.e1));const m=meta(n);return `<div class="li" onclick="openEx(${q(n)})">${exIcon(n)}<div class="grow" style="min-width:0"><b class="ell" style="display:block">${esc(n)}</b><div class="mut sm">${m.muscle} · ${hi.length} session${hi.length>1?'s':''} · last ${fmtDate(names[n],{day:'numeric',month:'short'})}</div></div>${spark(hi.slice(-10).map(x=>x.e1),'#ff6b2c')}<div class="right" style="width:58px"><div class="num" style="font-weight:800">${best.toFixed(0)}</div><div class="mut xs">e1RM kg</div></div></div>`;}).join('')}</div>`;}
   else if(progTab==='muscles')h+=muscleView(ss);
   else if(progTab==='badges')h+=badgesView();
-    else if(progTab==='run'){const runs=runEntries().filter(r=>r.pace);
-      if(!runs.length)h+=emptyState('🏃','No runs yet','Log a run, add a treadmill run to any workout, or import one from your Garmin.',`<button class="btn p" onclick="importRunPick()">Import run</button>`);
-      else{const cols={A:'#ef4444',B:'#3d9bff',C:'#ffc233',F:'#a78bfa',T:'#22d3ee'};chart={series:Object.keys(cols).map(k=>({name:k==='T'?'Treadmill':RUN_TYPES[k].name,color:cols[k],pts:runs.filter(r=>r.type===k).map(r=>[r.date,r.pace])})).filter(x=>x.pts.length),invert:true,fmt:v=>fmtTime(v)};
-        const totalKm=runs.reduce((a,r)=>a+r.km,0);
-        h+=`<div class="stats" style="margin-bottom:4px"><div class="stat"><div class="v">${totalKm.toFixed(1)}</div><div class="l">total km</div></div><div class="stat"><div class="v">${fmtTime(Math.min(...runs.map(r=>r.pace)))}</div><div class="l">best pace</div></div><div class="stat"><div class="v">${+Math.max(...runs.map(r=>r.km)).toFixed(2)}</div><div class="l">longest km</div></div></div>`;
-        h+=raceEstCard(runs);
-        h+=chartCard('Pace by run type','lower = faster');
-        h+=`<div class="sec">Recent runs</div><div class="card">${runs.slice(-8).reverse().map(r=>`<div class="li" onclick="go('session',${q(r.s.id)})"><div class="grow"><b>${r.label}</b><div class="mut sm">${fmtDate(r.date)} · ${+r.km.toFixed(2)} km${r.s.imported?' · ⌚':''}${r.type==='T'&&r.s.type==='strength'?' · after '+esc(r.s.name):''}</div></div>${zoneChip(r.hr)}<b class="num">${fmtPace(r.pace)}</b></div>`).join('')}</div>`;}}
-    else if(progTab==='cardio'){h+=cardioView();chart=cardioChart;}
+  else if(progTab==='run'){const runs=runEntries().filter(r=>r.pace);
+    if(!runs.length)h+=emptyState('🏃','No runs yet','Log a run, add a treadmill run to any workout, or import one from your Garmin.',`<button class="btn p" onclick="importRunPick()">Import run</button>`);
+    else{const cols={A:'#ef4444',B:'#3d9bff',C:'#ffc233',F:'#a78bfa',T:'#22d3ee'};chart={series:Object.keys(cols).map(k=>({name:k==='T'?'Treadmill':RUN_TYPES[k].name,color:cols[k],pts:runs.filter(r=>r.type===k).map(r=>[r.date,r.pace])})).filter(x=>x.pts.length),invert:true,fmt:v=>fmtTime(v)};
+      const totalKm=runs.reduce((a,r)=>a+r.km,0);
+      h+=`<div class="stats" style="margin-bottom:4px"><div class="stat"><div class="v">${totalKm.toFixed(1)}</div><div class="l">total km</div></div><div class="stat"><div class="v">${fmtTime(Math.min(...runs.map(r=>r.pace)))}</div><div class="l">best pace</div></div><div class="stat"><div class="v">${+Math.max(...runs.map(r=>r.km)).toFixed(2)}</div><div class="l">longest km</div></div></div>`;
+      h+=raceEstCard(runs);
+      h+=chartCard('Pace by run type','lower = faster');
+      h+=`<div class="sec">Recent runs</div><div class="card">${runs.slice(-8).reverse().map(r=>`<div class="li" onclick="go('session',${q(r.s.id)})"><div class="grow"><b>${r.label}</b><div class="mut sm">${fmtDate(r.date)} · ${+r.km.toFixed(2)} km${r.s.imported?' · ⌚':''}${r.type==='T'&&r.s.type==='strength'?' · after '+esc(r.s.name):''}</div></div>${zoneChip(r.hr)}<b class="num">${fmtPace(r.pace)}</b></div>`).join('')}</div>`;}}
+  else if(progTab==='cardio'){h+=cardioView();chart=cardioChart;}
   else if(progTab==='hyrox'){const hx=ss.filter(s=>s.hyrox);
     if(!hx.length)h+=emptyState('⚡','No Hyrox sessions yet','Round times, station splits and totals will chart here.');
     else{const tids=[...new Set(hx.map(s=>s.templateId))];if(!tids.includes(hxSel))hxSel=hx[hx.length-1].templateId;const sel=hx.filter(s=>s.templateId===hxSel);const nm=id=>{const t=DB.templates.find(x=>x.id===id);return t?t.name:(hx.find(s=>s.templateId===id)||{}).name||'Hyrox';};
@@ -963,7 +973,7 @@ function raceEstCard(runs){const e5=raceEst(5),e10=raceEst(10);
   const trend=runs.filter(r=>r.km>=2).map(r=>{const e=raceEst(5,new Date(r.date));return e?-e.sec:null;});
   return `<div class="sec">Estimated race times<span class="r mut xs">best run ≥2 km, last 8 wks</span></div><div class="card">${e5?`<div class="row"><div class="stats s2 grow"><div class="stat"><div class="v">${fmtTime(e5.sec)}</div><div class="l">5K</div></div><div class="stat"><div class="v">${fmtTime(e10.sec)}</div><div class="l">10K</div></div></div>${spark(trend,'#34d399',64,34)}</div>
    <div class="mut xs" style="margin-top:8px">From your ${+e5.src.km.toFixed(2)} km ${e5.src.type==='T'?'treadmill run ':''}on ${fmtDate(e5.src.date,{day:'numeric',month:'short'})} (${fmtPace(e5.src.pace)}). A rough guide – it gets better with longer, harder efforts.</div>`:'<div class="mut sm">Log a run of 2 km or more to get a 5K and 10K estimate.</div>'}</div>`;}
-function chartCard(title,sub){return `<div class="card"><div class="row" style="margin-bottom:6px"><b class="grow">${title}</b><span class="mut xs">${sub}</span></div><canvas id="chart"></canvas><div id="legend" class="row wrap" style="gap:12px;margin-top:8px"></div></div>`;}
+function chartCard(title,sub){return `<div class="card"><div class="row" style="margin-bottom:6px"><b class="grow">${title}</b><span class="mut xs">${sub}</span></div><canvas id="chart"></canvas><div class="mut xs" style="text-align:right;margin-top:2px">👆 Touch the chart for values</div><div id="legend" class="row wrap" style="gap:12px;margin-top:8px"></div></div>`;}
 function delBw(date){const i=DB.bodyweight.findIndex(b=>b.date===date);const [b]=DB.bodyweight.splice(i,1);save();renderProgress();toast('Entry deleted',()=>{DB.bodyweight.push(b);save();renderProgress();});}
 function muscleView(ss){const weeks=musRange==='week'?1:4;const from=musRange==='week'?mondayOf(new Date()):addDays(mondayOf(new Date()),-28);const to=musRange==='week'?addDays(from,7):mondayOf(new Date());
   const c={};ss.filter(s=>{const d=new Date(s.date);return d>=from&&d<to;}).forEach(s=>(s.exercises||[]).forEach(e=>{const m=meta(e.name).muscle;c[m]=(c[m]||0)+working(e).length;}));
@@ -1016,7 +1026,7 @@ function renderExercise(){const name=param;const hi=exHistory(name);const m=meta
   $('#app').innerHTML=h;drawChart($('#chart'),{series:[{name:'Est. 1RM',color:'#ff6b2c',pts:hi.map(x=>[x.date,x.e1])},{name:'Top set kg',color:'#3d9bff',pts:hi.map(x=>[x.date,x.top]),thin:true}],fmt:v=>v.toFixed(0)});}
 
 /* ======================= CHART ======================= */
-function drawChart(cv,{series,invert=false,fmt=v=>v.toFixed(1)}){
+function drawChart(cv,opts,sel){const {series,invert=false,fmt=v=>v.toFixed(1)}=opts;chartTouch(cv);const STP=[];
   const lg=$('#legend');if(lg)lg.innerHTML=series.map(s=>`<span class="mut xs" style="font-weight:600"><span class="dotc" style="background:${s.color};width:8px;height:8px;margin-right:4px"></span>${esc(s.name)}</span>`).join('');
   const dpr=window.devicePixelRatio||1,W=cv.clientWidth,H=cv.clientHeight;cv.width=W*dpr;cv.height=H*dpr;const c=cv.getContext('2d');c.scale(dpr,dpr);
   const all=series.flatMap(s=>s.pts);if(!all.length)return;const mut=cssVar('--mut'),line=cssVar('--s2');
@@ -1029,7 +1039,8 @@ function drawChart(cv,{series,invert=false,fmt=v=>v.toFixed(1)}){
   series.forEach((s,si)=>{const P=s.pts.map(p=>[X(+toDate(p[0])),Y(p[1])]);if(!P.length)return;
     if(si===0&&P.length>1&&!s.thin){const g=c.createLinearGradient(0,T,0,H-B);g.addColorStop(0,s.color+'55');g.addColorStop(1,s.color+'00');c.fillStyle=g;c.beginPath();c.moveTo(P[0][0],invert?T:H-B);P.forEach(p=>c.lineTo(p[0],p[1]));c.lineTo(P[P.length-1][0],invert?T:H-B);c.closePath();c.fill();}
     c.strokeStyle=s.color;c.lineWidth=s.thin?1.5:2.5;c.lineJoin='round';c.lineCap='round';if(!s.dots&&P.length>1){c.beginPath();P.forEach((p,i)=>i?c.lineTo(...p):c.moveTo(...p));c.stroke();}
-    c.fillStyle=s.color;P.forEach((p,i)=>{const last=i===P.length-1;if(s.dots||last||P.length<12){c.beginPath();c.arc(p[0],p[1],last?4:2.5,0,7);c.fill();}});});
+    c.fillStyle=s.color;P.forEach((p,i)=>{const last=i===P.length-1;if(s.dots||last||P.length<12){c.beginPath();c.arc(p[0],p[1],last?4:2.5,0,7);c.fill();}STP.push({x:p[0],y:p[1],v:s.pts[i][1],d:+toDate(s.pts[i][0]),col:s.color,name:s.name,si});});});
+  cv._st={opts,pts:STP};if(sel)chartTip(c,cv,sel,fmt,W,H,T,B);
 }
 
 /* ======================= SHARE CARD ======================= */
@@ -1213,7 +1224,7 @@ function goalCard(){const mon=mondayOf(new Date()),cnt=weekCount(mon),goal=+DB.s
   const msg=hit?(cnt>goal?`Goal smashed – ${cnt-goal} bonus session${cnt-goal>1?'s':''} 🚀`:'Weekly goal hit ✅ streak safe'):left>daysLeft?`${left} to go – tough week, every session counts`:`${left} more session${left>1?'s':''} to ${stk?'keep the streak alive':'start a streak'}`;
   return `<div class="card"><div class="goal"><div class="ring">${ring(cnt,goal,hit?'var(--ok)':'var(--acc)')}<div class="c"><b class="num">${cnt}<span class="mut">/${goal}</span></b><span class="mut xs">this week</span></div></div>
   <div class="grow"><div class="row" style="gap:6px"><span class="flame ${stk?'on':''}">🔥</span><b style="font-size:26px;letter-spacing:-.02em" class="num">${stk}</b><span class="mut sm" style="font-weight:700">week streak</span></div>
-  <div class="sm" style="margin-top:4px;font-weight:600">${msg}</div><div class="mut xs" style="margin-top:3px">Best streak: ${best} wk${best===1?'':'s'}</div></div></div>
+  <div class="sm" style="margin-top:4px;font-weight:600">${msg}</div><div class="mut xs" style="margin-top:3px">Best streak: ${best} wk${best===1?'':'s'}</div><div class="cpill" onclick="event.stopPropagation();progTab='cardio';go('progress')">🫀 <b class="num">${weekCardioMin()}</b> min cardio this week</div></div></div>
   <div style="margin-top:14px">${weekStrip(mon)}</div></div>`;}
 
 /* ---------- live "beat last time" bar ---------- */
@@ -1229,18 +1240,22 @@ const BADGES=[
  ['streak',[[2,'🔥','Warming up','2-week streak'],[4,'☄️','On fire','4-week streak'],[8,'🌋','Volcano','8-week streak'],[12,'⚡','Unstoppable','12-week streak'],[26,'🏆','Half a year','26-week streak']]],
  ['prs',[[1,'✨','First PR','Hit a personal best'],[10,'🎯','PR hunter','10 PRs'],[50,'🚀','PR machine','50 PRs'],[100,'🌟','Legend','100 PRs']]],
  ['runKm',[[10,'👟','First 10k','10 km run in total'],[50,'🏃','50 km','50 km run'],[100,'🛣️','Century','100 km run'],[250,'🌍','Explorer','250 km run']]],
+ ['swimM',[[1000,'🏊','First 1k swim','1 km swum in total'],[5000,'🐬','Dolphin','5 km swum'],[20000,'🦈','Shark','20 km swum'],[50000,'🌊','Channel crosser','50 km swum']]],
+ ['cycleKm',[[50,'🚴','Spinning up','50 km on the bike'],[100,'🚵','Century ride','100 km cycled'],[500,'🛞','Road warrior','500 km cycled'],[1000,'🏔️','Grand tour','1,000 km cycled']]],
+ ['rowM',[[5000,'🚣','First 5k row','5 km rowed / ski erg'],[21097,'🛶','Half marathon row','21.1 km rowed'],[42195,'⚓','Marathon row','42.2 km rowed'],[100000,'🚢','Ocean rower','100 km rowed']]],
+ ['cardioMin',[[60,'🫀','Heart starter','1 hour of cardio'],[600,'❤️‍🔥','Engine','10 hours of cardio'],[3000,'🫁','Big lungs','50 hours of cardio']]],
  ['hyrox',[[1,'⚡','Hybrid','First Hyrox session'],[10,'🛷','Sled dog','10 Hyrox sessions'],[25,'🏁','Race ready','25 Hyrox sessions']]]
 ].flatMap(([k,l])=>l.map(([t,i,n,d])=>({id:k+t,k,t,i,n,d})));
 function badgeStats(){const ss=DB.sessions;let tonnes=0,heaviest=0,prs=0,runKm=0,hyrox=0;
   ss.forEach(s=>{tonnes+=sessVolume(s)/1000;(s.exercises||[]).forEach(e=>prSets(e).forEach(x=>heaviest=Math.max(heaviest,+x.kg||0)));prs+=(s.pbs||[]).length;if(s.hyrox)hyrox++;});runKm=runEntries().reduce((a,r)=>a+r.km,0);
-  return {sessions:ss.length,tonnes,heaviest,streak:bestStreak(),prs,runKm,hyrox};}
+  return Object.assign({sessions:ss.length,tonnes,heaviest,streak:bestStreak(),prs,runKm,hyrox},cardioTotals());}
 function checkBadges(silent){DB.badges=DB.badges||{};const st=badgeStats();const fresh=[];
   BADGES.forEach(b=>{if(st[b.k]>=b.t&&!DB.badges[b.id]){DB.badges[b.id]=silent?'early':new Date().toISOString();if(!silent)fresh.push(b.id);}});return fresh;}
 function nextBadge(){const st=badgeStats();let best=null;BADGES.forEach(b=>{if(DB.badges&&DB.badges[b.id])return;const p=Math.min(.999,st[b.k]/b.t);if(!best||p>best.p)best={b,p,have:st[b.k]};});return best;}
-function badgeFmt(k,v){return k==='tonnes'?(+v).toFixed(v<10?1:0)+' t':k==='heaviest'?fmtKg(v)+' kg':k==='runKm'?(+v).toFixed(0)+' km':k==='streak'?v+' wk':Math.floor(v);}
+function badgeFmt(k,v){return k==='tonnes'?(+v).toFixed(v<10?1:0)+' t':k==='heaviest'?fmtKg(v)+' kg':k==='runKm'?(+v).toFixed(0)+' km':k==='streak'?v+' wk':k==='swimM'||k==='rowM'?(v/1000).toFixed(v<10000?1:0)+' km':k==='cycleKm'?Math.round(v)+' km':k==='cardioMin'?(v/60).toFixed(v<600?1:0)+' h':Math.floor(v);}
 function badgesView(){const st=badgeStats();const got=BADGES.filter(b=>DB.badges&&DB.badges[b.id]).length;
   let h=`<div class="card row"><div class="ring" style="width:64px;height:64px">${ring(got,BADGES.length,'var(--acc)',64,7)}<div class="c"><b class="sm num">${got}</b></div></div><div class="grow"><b>${got} of ${BADGES.length} badges</b><div class="mut sm">Keep logging – they unlock as you go</div></div></div>`;
-  const groups={sessions:'Workouts',tonnes:'Total lifted',heaviest:'Heaviest set',streak:'Streaks',prs:'Personal bests',runKm:'Running',hyrox:'Hyrox'};
+  const groups={sessions:'Workouts',tonnes:'Total lifted',heaviest:'Heaviest set',streak:'Streaks',prs:'Personal bests',runKm:'Running',swimM:'Swimming',cycleKm:'Cycling',rowM:'Rower & ski erg',cardioMin:'Cardio time',hyrox:'Hyrox'};
   for(const k in groups){const l=BADGES.filter(b=>b.k===k);h+=`<div class="sec">${groups[k]}<span class="r mut">${badgeFmt(k,st[k])}</span></div><div class="badges">${l.map(b=>{const on=DB.badges&&DB.badges[b.id];const p=Math.min(1,st[k]/b.t);
     return `<div class="badge ${on?'':'lock'}" onclick="toast(${q(b.i+' '+b.n+' – '+b.d+(on?(on==='early'?' ✓':' ✓ '+fmtDate(on,{day:'numeric',month:'short'})):' · '+Math.round(p*100)+'%'))})"><div class="i">${b.i}</div><div class="n">${b.n}</div>${on?`<div class="d">${b.d}</div>`:`<div class="pt"><i style="width:${p*100}%"></i></div>`}</div>`;}).join('')}</div>`;}
   return h;}
@@ -1291,7 +1306,7 @@ function gymUI(s){const ex=s.exercises;if(!ex.length){s.gym=false;return strengt
     if(e.cardio.done)g+=ei<ex.length-1?`<button class="gym-go" onclick="gymGo(${ei+1})">Next: ${esc(ex[ei+1].name)} →</button>`:`<button class="gym-go" style="background:var(--acc);color:var(--onacc)" onclick="finishPrompt()">Finish workout 🏁</button>`;return g;}
   let h=`<div class="gym-top"><button class="btn sm" onclick="gymExit()">☰ List</button><div class="grow center mut sm" style="font-weight:700">Exercise ${ei+1} of ${ex.length}</div><button class="icon-btn" onclick="gymGo(${ei-1})" ${ei?'':'disabled style="opacity:.3"'}>‹</button><button class="icon-btn" onclick="gymGo(${ei+1})" ${ei<ex.length-1?'':'disabled style="opacity:.3"'}>›</button></div>`;
   h+=beatBar(s);
-  h+=`<div class="card gym"><div class="row"><div class="grow"><div class="gym-name">${esc(e.name)}</div><div class="mut sm">${m.muscle}${e.group?' · <b style="color:var(--acc)">Superset</b>':''}</div></div><button class="chip ${e.rpe?'acc':''}" style="border:0;padding:8px 12px;font-size:14px" onclick="rpeSheet(${ei})">RPE ${e.rpe||'–'}</button></div>
+  h+=`<div class="card gym"><div class="row" style="gap:12px">${exIcon(e.name,46)}<div class="grow"><div class="gym-name">${esc(e.name)}</div><div class="mut sm">${m.muscle}${e.group?' · <b style="color:var(--acc)">Superset</b>':''}</div></div><button class="chip ${e.rpe?'acc':''}" style="border:0;padding:8px 12px;font-size:14px" onclick="rpeSheet(${ei})">RPE ${e.rpe||'–'}</button></div>
   ${m.note?`<div class="note" style="margin:10px 0 0" onclick="editNote(${q(e.name)})">📌 ${esc(m.note)}</div>`:''}
   <div class="gym-dots">${e.sets.map((x,k)=>`<span class="${x.done?'done':''} ${k===si?'cur':''} ${x.kind==='W'?'w':''}">${x.done?'✓':setLabel(e,k)}</span>`).join('')}</div>`;
   if(si<0){h+=`<div class="center" style="padding:16px 0 4px"><div style="font-size:44px">✅</div><b style="font-size:18px">${esc(e.name)} done</b><div class="mut sm">${e.sets.filter(x=>x.kind!=='W').map(setTxt).join(' · ')}</div></div>
@@ -1324,7 +1339,6 @@ const CT={
  owswim:{n:'Swim – open water',s:'Open water',i:'🌊',u:'m',m:'swim',x:'',k:['swim','swimming','open','lake','sea','outdoor']},
  tread:{n:'Treadmill run',s:'Treadmill',i:'🏃',u:'km',m:'pace',x:'incline',run:true,k:['run','running','treadmill','jog']},
  walk:{n:'Walk',s:'Walk',i:'🚶',u:'km',m:'pace',x:'incline',k:['walk','incline','hike']}};
-const CMAP={'Bike':'bike','Row':'row','Ski erg':'ski','Run':'tread'};
 const cT=c=>CT[c&&c.type]||CT.bike;
 function newCardio(k){return {type:k,min:'',dist:'',hr:'',cal:'',elev:'',pool:25,incline:'',done:false};}
 const cHas=c=>!!(c&&(parseTime(c.min)||+c.dist));
@@ -1348,7 +1362,6 @@ function cFields(c,kind,i){const T=cT(c);const ref=`'${kind}',${i}`;
   return `<div class="field-row"><div><label>Time</label><input inputmode="numeric" value="${esc(c.min)}" placeholder="30:00" onchange="this.value=digitsToTime(this.value);cfSet(${ref},'min',this.value)"></div><div><label>Distance (${T.u})</label><input inputmode="decimal" value="${dv}" placeholder="${T.u==='km'?'5.0':'2000'}" oninput="cfDist(${ref},this.value)"></div></div>
   <div class="field-row"><div><label>Avg HR</label><input inputmode="numeric" value="${esc(c.hr)}" oninput="cfSet(${ref},'hr',this.value)"></div>${x}</div>
   <div class="chip acc" id="cm-${kind}${i}" style="justify-content:center;padding:7px;margin-top:10px;display:flex">${cMetric(c)||'Pace / split appears here'}</div>`;}
-/* cardio card inside a weights session */
 function cardioCard(ei,force){const e=DB.active.exercises[ei],c=e.cardio,T=cT(c);
   if(c.done&&!ui.open.has(ei)&&!force)return `<div class="card ex collapsed" onclick="ui.open.add(${ei});renderWorkout()"><div class="ck">✓</div><div class="grow"><div class="exn ell">${T.i} ${esc(e.name)} <span class="chip acc">Cardio</span></div><div class="mut sm ell num">${cSummary(c)}</div></div><span class="chev">›</span></div>`;
   return `<div class="card ex" id="ex${ei}"><div class="exh"><div class="setico" style="background:color-mix(in srgb,var(--acc) 15%,transparent)">${T.i}</div><div class="grow"><div class="exn">${esc(e.name)}</div><div class="mut sm">🫀 Cardio · counts in your Cardio${T.run?' and Run':''} stats</div></div><button class="icon-btn" onclick="cardioMenu(${ei})">⋯</button></div>
@@ -1360,19 +1373,19 @@ function cardioTypeSheet(ei){sheet(`<h3>Change activity</h3><div class="menu">${
 function setCardioType(ei,k){const e=DB.active.exercises[ei];e.cardio.type=k;e.name=CT[k].n;save();closeSheet();renderWorkout();}
 function addCardioEx(k){DB.active.exercises.push({name:CT[k].n,cardio:newCardio(k),sets:[],group:null,rest:0,rpe:'',target:''});save();closeSheet();renderWorkout();
   setTimeout(()=>{if(!DB.active)return;const el=$('#ex'+(DB.active.exercises.length-1));el&&el.scrollIntoView({behavior:'smooth',block:'center'});},50);}
-/* add-exercise search with cardio suggestions */
 function exSearch(){const box=$('#exSug');if(!box)return;const v=($('#exName').value||'').trim().toLowerCase();if(!v){box.innerHTML='';return;}
   const cm=Object.entries(CT).filter(([k,c])=>c.n.toLowerCase().includes(v)||c.k.some(w=>w.startsWith(v)||(v.length>=3&&v.includes(w))));
   const em=exerciseNames().filter(n=>n.toLowerCase().includes(v)&&n.toLowerCase()!==v).slice(0,6);
   box.innerHTML=cm.map(([k,c])=>`<button onclick="addCardioEx('${k}')"><span>${c.i} ${esc(c.n)}</span><span class="chip acc">🫀 Cardio</span></button>`).join('')+
-    em.map(n=>`<button onclick="$('#exName').value=${q(n)};$('#exSug').innerHTML=''"><span>${esc(n)}</span><span class="mut xs">${meta(n).muscle}</span></button>`).join('');}
-/* ---------- cardio + run data across the app ---------- */
+    em.map(n=>`<button onclick="$('#exName').value=${q(n)};$('#exSug').innerHTML=''"><span class="row" style="gap:8px">${exIcon(n,26)}${esc(n)}</span><span class="mut xs">${meta(n).muscle}</span></button>`).join('');}
 function cardioEntries(){const out=[];[...DB.sessions].sort((a,b)=>a.date.localeCompare(b.date)).forEach(s=>{(s.cardio||[]).forEach(c=>{if(cHas(c))out.push({s,c,date:s.date,inWeights:false});});(s.exercises||[]).forEach(e=>{if(e.cardio&&cHas(e.cardio))out.push({s,c:e.cardio,date:s.date,inWeights:true});});});return out;}
 function runEntries(){const out=[];DB.sessions.forEach(s=>{if(s.run&&+s.run.distKm){const sec=s.run.sec||parseTime(s.run.time);out.push({s,date:s.date,km:+s.run.distKm,sec,pace:s.run.pace||pace(sec,+s.run.distKm),hr:s.run.avgHR,type:s.run.type,label:RUN_TYPES[s.run.type].name});}});
   cardioEntries().forEach(x=>{if(!cT(x.c).run)return;const sec=parseTime(x.c.min),km=(+x.c.dist||0)/1000;if(!km)return;out.push({s:x.s,date:x.date,km,sec,pace:pace(sec,km),hr:x.c.hr,type:'T',label:'Treadmill run'});});
   return out.sort((a,b)=>a.date.localeCompare(b.date));}
-function cBest(k,l){const T=CT[k];let b=null;l.forEach(x=>{const t=parseTime(x.c.min),m=+x.c.dist;if(!t||!m)return;const v=T.m==='split'?t/(m/500):T.m==='speed'?-(m/1000/(t/3600)):T.m==='swim'?t/(m/100):t/(m/1000);if(b==null||v<b)b=v;});
-  if(b==null)return '';return T.m==='split'?fmtTime(b)+'/500m':T.m==='speed'?(-b).toFixed(1)+' km/h':T.m==='swim'?fmtTime(b)+'/100m':fmtTime(b)+'/km';}
+/* cardio "score" – lower is better (split/pace) – speed is negated */
+function cScore(c){const T=cT(c);const t=parseTime(c.min),m=+c.dist;if(!t||!m)return null;return T.m==='split'?t/(m/500):T.m==='speed'?-(m/1000/(t/3600)):T.m==='swim'?t/(m/100):t/(m/1000);}
+function cScoreTxt(k,v){const T=CT[k];return T.m==='split'?fmtTime(v)+'/500m':T.m==='speed'?(-v).toFixed(1)+' km/h':T.m==='swim'?fmtTime(v)+'/100m':fmtTime(v)+'/km';}
+function cBest(k,l){let b=null;l.forEach(x=>{const v=cScore(x.c);if(v!=null&&(b==null||v<b))b=v;});return b==null?'':cScoreTxt(k,b);}
 let cardioChart=null;
 function cardioView(){const all=cardioEntries();cardioChart=null;
   if(!all.length)return emptyState('🫀','No cardio yet','Add cardio at the end of a weights session, or start a Cardio, Swim or Cycle workout.');
@@ -1384,7 +1397,6 @@ function cardioView(){const all=cardioEntries();cardioChart=null;
     return `<div class="li"><div class="setico" style="background:var(--s2)">${T.i}</div><div class="grow"><b>${T.n}</b><div class="mut sm">${l.length}× · ${fmtDur(tm)}${dist?' · '+cDistTxt({type:k,dist}):''}</div></div>${best?`<div class="right"><div class="num" style="font-weight:700">${best}</div><div class="mut xs">best</div></div>`:''}</div>`;}).join('')}</div>`;
   h+=`<div class="sec">Recent</div><div class="card">${all.slice(-10).reverse().map(x=>{const T=cT(x.c);return `<div class="li" onclick="go('session',${q(x.s.id)})"><div class="setico" style="background:var(--s2)">${T.i}</div><div class="grow"><b>${T.n}</b><div class="mut sm ell">${fmtDate(x.date)}${x.inWeights?' · after '+esc(x.s.name):''}</div></div><span class="mut sm num right">${[x.c.min,cDistTxt(x.c)].filter(Boolean).join(' · ')}</span></div>`;}).join('')}</div>`;
   return h;}
-/* ---------- rename an exercise everywhere ---------- */
 function renameSheet(name,ei){sheet(`<h3>Rename exercise</h3><input id="rnN" list="exList" value="${esc(name)}" autocomplete="off">${exDatalist()}
   <div class="mut xs" style="margin:8px 2px 12px"><b>Everywhere</b> moves your templates, history, PRs and notes to the new name. If that name already exists, the two histories are combined.</div>
   <button class="btn p block lg" onclick="renameDo(${q(name)},${ei==null?'null':ei},true)">Rename everywhere</button>
@@ -1398,11 +1410,55 @@ function renameDo(from,ei,all){const to=$('#rnN').value.trim();if(!to)return toa
   if(all){const n=renameEverywhere(from,to);save();closeSheet();toast(`Renamed in templates + ${n} workout${n===1?'':'s'}`);}
   else{DB.active.exercises[ei].name=to;save();closeSheet();toast('Renamed for this workout');}
   if(view==='exercise')param=to;render();}
-/* template editor – cardio rows */
 function addTplCardio(){sheet(`<h3>Add cardio to this workout</h3><div class="menu">${Object.entries(CT).map(([k,c])=>`<button onclick="tpl().exercises.push({name:CT['${k}'].n,cardio:'${k}',sets:0,reps:'',rest:0,group:null});save();closeSheet();renderEditTemplate()">${c.i} ${c.n}</button>`).join('')}</div>`);}
 
+
+/* ======================= v2.5: CARDIO PBs + BADGES, ICONS, TAPPABLE CHARTS, MOTION ======================= */
+/* ---------- cardio PBs (best pace/split/speed + longest distance per activity) ---------- */
+function cardioPBs(s,others){const pbs=[];const mine=[...(s.cardio||[]),...(s.exercises||[]).filter(e=>e.cardio).map(e=>e.cardio)].filter(cHas);if(!mine.length)return pbs;
+  const prev=[];others.forEach(o=>{(o.cardio||[]).forEach(c=>{if(cHas(c))prev.push(c);});(o.exercises||[]).forEach(e=>{if(e.cardio&&cHas(e.cardio))prev.push(e.cardio);});});
+  const done={};mine.forEach(c=>{const k=c.type;const T=cT(c);const pl=prev.filter(x=>x.type===k);if(!pl.length)return;
+    const sc=cScore(c);const ps=pl.map(cScore).filter(v=>v!=null);
+    if(sc!=null&&ps.length&&sc<Math.min(...ps)-0.05&&!(done[k+'s']<=sc)){done[k+'s']=sc;pbs.push({name:T.n,what:T.m==='split'?'Best split':T.m==='speed'?'Fastest speed':'Fastest pace',val:cScoreTxt(k,sc),prev:cScoreTxt(k,Math.min(...ps)),cardio:true});}
+    const pd=Math.max(...pl.map(x=>+x.dist||0));if(+c.dist&&pd>0&&+c.dist>pd&&!(done[k+'d']>=+c.dist)){done[k+'d']=+c.dist;pbs.push({name:T.n,what:'Longest distance',val:cDistTxt(c),prev:cDistTxt({type:k,dist:pd}),cardio:true});}});
+  /* keep one entry per type+kind (the best) */
+  const seen={};return pbs.reverse().filter(p=>{const key=p.name+p.what;if(seen[key])return false;seen[key]=1;return true;}).reverse();}
+/* ---------- cardio totals for badges + Today ---------- */
+function cardioTotals(){const t={swimM:0,cycleKm:0,rowM:0,cardioMin:0};cardioEntries().forEach(x=>{const c=x.c,m=+c.dist||0;
+  t.cardioMin+=(parseTime(c.min)||0)/60;if(c.type==='swim'||c.type==='owswim')t.swimM+=m;if(c.type==='bike'||c.type==='cycle')t.cycleKm+=m/1000;if(c.type==='row'||c.type==='ski')t.rowM+=m;});return t;}
+function weekCardioMin(){const mon=mondayOf(new Date());return Math.round(cardioEntries().filter(x=>new Date(x.date)>=mon).reduce((a,x)=>a+(parseTime(x.c.min)||0)/60,0));}
+/* ---------- exercise icons (coloured muscle tiles) ---------- */
+const MCOL={Chest:'#ff6b2c',Back:'#3d9bff',Shoulders:'#a78bfa',Biceps:'#22d3ee',Triceps:'#f472b6',Quads:'#34d399',Hamstrings:'#10b981',Glutes:'#fb7185',Calves:'#a3e635','Core':'#ffc233','Lower back':'#60a5fa',Other:'#94a3b8'};
+const MABR={Chest:'CH',Back:'BK',Shoulders:'SH',Biceps:'BI',Triceps:'TR',Quads:'QD',Hamstrings:'HS',Glutes:'GL',Calves:'CV',Core:'CO','Lower back':'LB',Other:'••'};
+const EQIC={barbell:'M3 12h18M6 8v8M18 8v8M4 10v4M20 10v4',db:'M7 12h10M5 8v8M19 8v8M3 10v4M21 10v4',smith:'M4 4v16M20 4v16M4 10h16M8 7v6M16 7v6',cable:'M12 3v8M8 3h8M12 11l-4 8M12 11l4 8',machine:'M5 20V6h6v14M11 12h8M15 8v8',bw:'M12 5a2 2 0 1 0 0-.01M12 8v7M8 11h8M12 15l-3 5M12 15l3 5'};
+function exIcon(name,size=36){const m=meta(name);const c=MCOL[m.muscle]||MCOL.Other;const ic=EQIC[m.equip];
+  return `<span class="exi" style="--mc:${c};width:${size}px;height:${size}px;font-size:${Math.round(size*.34)}px">${ic&&size>=32?`<svg viewBox="0 0 24 24" width="${Math.round(size*.5)}" height="${Math.round(size*.5)}"><path d="${ic}"/></svg><b>${MABR[m.muscle]||'••'}</b>`:`<b style="font-size:inherit">${MABR[m.muscle]||'••'}</b>`}</span>`;}
+/* ---------- tappable charts ---------- */
+function chartTouch(cv){if(cv._tap)return;cv._tap=1;cv.style.touchAction='pan-y';
+  const pick=ev=>{const st=cv._st;if(!st)return;const r=cv.getBoundingClientRect();const p=ev.touches?ev.touches[0]:ev;const x=p.clientX-r.left;let best=null;
+    st.pts.forEach(q=>{const dx=Math.abs(q.x-x);if(!best||dx<best.dx)best={...q,dx};});if(!best)return;if(cv._sel&&cv._sel.x===best.x&&cv._sel.si===best.si)return;cv._sel=best;haptic();drawChart(cv,st.opts,best);};
+  cv.addEventListener('touchstart',pick,{passive:true});cv.addEventListener('touchmove',pick,{passive:true});cv.addEventListener('mousedown',pick);cv.addEventListener('mousemove',e=>{if(e.buttons)pick(e);});
+  const clear=()=>{setTimeout(()=>{cv._sel=null;cv._st&&drawChart(cv,cv._st.opts);},2200);};cv.addEventListener('touchend',clear);cv.addEventListener('mouseup',clear);}
+function chartTip(c,cv,sel,fmt,W,H,T,B){const all=cv._st.pts.filter(q=>Math.abs(q.x-sel.x)<0.5);
+  c.save();c.strokeStyle=cssVar('--mut');c.globalAlpha=.6;c.setLineDash([3,3]);c.beginPath();c.moveTo(sel.x,T);c.lineTo(sel.x,H-B);c.stroke();c.restore();
+  all.forEach(q=>{c.fillStyle=cssVar('--s1');c.beginPath();c.arc(q.x,q.y,6.5,0,7);c.fill();c.fillStyle=q.col;c.beginPath();c.arc(q.x,q.y,4.5,0,7);c.fill();});
+  const date=new Date(sel.d).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'2-digit'});
+  const lines=all.map(q=>[q.col,(all.length>1?q.name+': ':'')+fmt(q.v)]);
+  c.font='700 12px -apple-system,system-ui,sans-serif';const w=Math.max(c.measureText(date).width,...lines.map(l=>c.measureText(l[1]).width+12))+18,h=20+lines.length*16;
+  let bx=sel.x+10;if(bx+w>W-4)bx=sel.x-10-w;const by=Math.max(T,Math.min(sel.y-h/2,H-B-h));
+  c.fillStyle=cssVar('--txt');c.globalAlpha=.94;c.beginPath();c.roundRect?c.roundRect(bx,by,w,h,9):c.rect(bx,by,w,h);c.fill();c.globalAlpha=1;
+  c.fillStyle=cssVar('--bg');c.font='600 11px -apple-system,system-ui,sans-serif';c.fillText(date,bx+9,by+15);
+  c.font='800 12.5px -apple-system,system-ui,sans-serif';lines.forEach((l,i)=>{c.fillStyle=l[0];c.beginPath();c.arc(bx+12,by+27+i*16,3.5,0,7);c.fill();c.fillStyle=cssVar('--bg');c.fillText(l[1],bx+(all.length>1||true?20:9),by+31+i*16);});}
+/* ---------- motion ---------- */
+const reduceMotion=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
+let navDir='fwd';
+function animIn(){if(reduceMotion())return;const a=$('#app');if(!a)return;a.classList.remove('in-fwd','in-back','in-fade');void a.offsetWidth;a.classList.add(navDir==='back'?'in-back':navDir==='tab'?'in-fade':'in-fwd');navDir='fwd';clearTimeout(a._t);a._t=setTimeout(()=>a.classList.remove('in-fwd','in-back','in-fade'),650);}
+function countUp(root){if(reduceMotion())return;(root||document).querySelectorAll('.stat .v').forEach(el=>{const raw=el.textContent.trim();const m=raw.match(/^([^\d]*)([\d,]+(?:\.\d+)?)(.*)$/);if(!m||raw.includes(':'))return;
+  const tgt=parseFloat(m[2].replace(/,/g,''));if(!tgt)return;const dec=(m[2].split('.')[1]||'').length,comma=m[2].includes(',');const t0=performance.now(),dur=900;
+  const step=t=>{const p=Math.min(1,(t-t0)/dur),e=1-Math.pow(1-p,3);let v=(tgt*e).toFixed(dec);if(comma)v=(+v).toLocaleString(undefined,{minimumFractionDigits:dec,maximumFractionDigits:dec});el.textContent=m[1]+v+m[3];if(p<1)requestAnimationFrame(step);};requestAnimationFrame(step);});}
+
 /* ======================= BOOT ======================= */
-if(!DB.badges){checkBadges(true);save();}
+if(!DB.badges||!DB.v25b){checkBadges(true);DB.v25b=1;save();}
 applyTheme();
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>go(b.dataset.v));
 if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
